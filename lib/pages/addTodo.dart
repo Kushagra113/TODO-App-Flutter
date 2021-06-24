@@ -15,6 +15,7 @@ class AddTodo extends StatefulWidget {
 
 class _AddTodoState extends State<AddTodo> {
   bool error = false;
+  bool _isLoading = false;
   late String categoryId;
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
@@ -34,17 +35,19 @@ class _AddTodoState extends State<AddTodo> {
           (route) => false);
     } else {
       try {
+        var headers = await globalConstants.tokenRead();
         var url = Uri.parse('${globalConstants.severIp}/todos');
         var response = await http.post(url,
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: jsonEncode({
               'categoryId': categoryId,
               'title': titleController.text,
               'description': descriptionController.text,
               'status': 'NC'
             }));
+        setState(() {
+          _isLoading = false;
+        });
         responseBody = jsonDecode(response.body);
         Navigator.pop(context, [
           responseBody['_id'],
@@ -184,25 +187,39 @@ class _AddTodoState extends State<AddTodo> {
             children: <Widget>[
               titleField(),
               descriptionField(),
-              ElevatedButton(
-                onPressed: () {
-                  // print(textController.text);
-                  if (titleController.text == "" ||
-                      descriptionController.text == "") {
-                    setState(() {
-                      error = true;
-                      errorText =
-                          "Please Enter Todo Name and Todo Description to add it";
-                    });
-                  } else {
-                    addTodo();
-                  }
-                },
-                child: Text(
-                  "Add Todo",
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
+              _isLoading
+                  ? Container()
+                  : ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _isLoading = true;
+                        });
+                        // print(textController.text);
+                        if (titleController.text == "" ||
+                            descriptionController.text == "") {
+                          setState(() {
+                            _isLoading = false;
+                            error = true;
+                            errorText =
+                                "Please Enter Todo Name and Todo Description to add it";
+                          });
+                        } else {
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          addTodo();
+                        }
+                      },
+                      child: Text(
+                        "Add Todo",
+                        style: TextStyle(fontSize: 18),
+                      ),
+                    ),
+              _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : Container(),
               error
                   ? Text(
                       errorText,

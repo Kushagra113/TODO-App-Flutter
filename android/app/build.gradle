@@ -34,7 +34,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.example.TODO-APP-TJ"
+        applicationId "com.example.todo_flutter_app"
         minSdkVersion 25
         targetSdkVersion 30
         versionCode 1

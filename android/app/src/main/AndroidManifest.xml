@@ -1,13 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.TODO-APP-TJ"
+    package="com.example.todo_flutter_app"
     android:versionCode="1"
     android:versionName="1.0">
+  <uses-permission android:name="android.permission.INTERNET"/>
    <application
-        android:label="TODO App"
+        android:label="TODO-APP-TJ App"
         android:icon="@mipmap/launcher_icon">
-        <uses-permission 
-        android:name="android.permission.INTERNET"
-          />
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

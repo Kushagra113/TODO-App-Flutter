@@ -19,7 +19,7 @@ class EachCategory extends StatefulWidget {
 class _EachCategoryState extends State<EachCategory> {
   late final String categoryId;
   late final String category;
-  bool _isLoading = false;
+  bool _isLoading = true;
   bool _getAllTodos = false;
   final TextStyle fontSize = TextStyle(fontSize: 17);
   static ScrollController _controller = ScrollController();
@@ -35,39 +35,37 @@ class _EachCategoryState extends State<EachCategory> {
         MaterialPageRoute(
           builder: (context) => AddTodo(categoryId),
         ));
-    setState(() {
-      todos.add(TodoBlueprint(
-          id: result[0],
-          categoryId: categoryId,
-          todoTitle: result[2],
-          todoDescription: result[3],
-          todoStatus: result[4]));
-    });
+    if (result != null) {
+      setState(() {
+        todos.add(TodoBlueprint(
+            id: result[0],
+            categoryId: categoryId,
+            todoTitle: result[2],
+            todoDescription: result[3],
+            todoStatus: result[4]));
+      });
+    }
   }
 
   void markAsNotComplete(String id) async {
+    var headers = await globalConstants.tokenRead();
     await http.put(Uri.parse("${globalConstants.severIp}/todos/Markcomplete"),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
   }
 
   void getNotCompletedTodos(String id) async {
+    var headers = await globalConstants.tokenRead();
     await http.put(
         Uri.parse("${globalConstants.severIp}/todos/Marknotcomplete"),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
   }
 
   Future<void> getTodos(String url) async {
+    var headers = await globalConstants.tokenRead();
     var result = await http.post(Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'categoryId': categoryId}));
+        headers: headers, body: jsonEncode({'categoryId': categoryId}));
     var allTodos = jsonDecode(result.body);
     todos.removeRange(0, todos.length);
     // print(allTodos);
@@ -81,6 +79,7 @@ class _EachCategoryState extends State<EachCategory> {
         });
     setState(() {
       _getAllTodos = true;
+      _isLoading = false;
     });
   }
 
@@ -103,6 +102,50 @@ class _EachCategoryState extends State<EachCategory> {
     }
   }
 
+  void _deleteTodo(TodoBlueprint todo) async {
+    var result = await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Are you sure?'),
+            content: Text("You dont want to Delete Todo ${todo.todoTitle}"),
+            actions: <Widget>[
+              TextButton(
+                child: Text('NO'),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              TextButton(
+                child: Text('YES'),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        });
+    if (result) {
+      var headers = await globalConstants.tokenRead();
+      var deleteRequest = await http.delete(
+          Uri.parse("${globalConstants.severIp}/todos/delete/${todo.id}"),
+          headers: headers);
+      if (jsonDecode(deleteRequest.body)['success'] != null) {
+        final snackBar = SnackBar(
+          content: Text(
+            'Deletion Of ${todo.todoTitle} Successfull',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        );
+        setState(() {
+          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          todos.remove(todo);
+        });
+      }
+    }
+  }
+
   Widget data(element) {
     return GestureDetector(
         onTap: () {},
@@ -111,52 +154,70 @@ class _EachCategoryState extends State<EachCategory> {
               ? Colors.yellow.shade700
               : Colors.greenAccent.shade400,
           margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                child: Column(
-                  children: <Widget>[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          element.todoTitle,
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ],
-                    ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(5, 2, 0, 0),
+            child: Column(
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(2, 15, 10, 10),
+                      padding: const EdgeInsets.fromLTRB(10, 5, 5, 0),
                       child: Text(
-                        element.todoDescription,
-                        style: TextStyle(fontSize: 16),
+                        element.todoTitle,
+                        style: TextStyle(fontSize: 18),
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: <Widget>[
-                        TextButton(
-                            onPressed: () {
-                              todos.remove(element);
-                              element.todoStatus == "NC"
-                                  ? markAsNotComplete(element.id)
-                                  : getNotCompletedTodos(element.id);
-                              setState(() {});
-                            },
-                            child: element.todoStatus == "NC"
-                                ? Text(
-                                    "Mark As Complete",
-                                    style: TextStyle(fontSize: 15),
-                                  )
-                                : Text("Mark As Not Complete"))
-                      ],
-                    )
+                    IconButton(
+                        onPressed: () {
+                          _deleteTodo(element);
+                        },
+                        icon: Icon(
+                          Icons.delete,
+                          color: Colors.black54,
+                        ))
                   ],
                 ),
-              )
-            ],
+                Divider(
+                  color: Colors.blueGrey.shade600,
+                  endIndent: 10,
+                  height: 1,
+                  indent: 10,
+                  thickness: 1,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 10, 5, 10),
+                      child: Text(
+                        element.todoDescription,
+                        style: TextStyle(fontSize: 17),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    TextButton(
+                        onPressed: () {
+                          todos.remove(element);
+                          element.todoStatus == "NC"
+                              ? markAsNotComplete(element.id)
+                              : getNotCompletedTodos(element.id);
+                          setState(() {});
+                        },
+                        child: element.todoStatus == "NC"
+                            ? Text(
+                                "Mark As Complete",
+                                style: TextStyle(fontSize: 15),
+                              )
+                            : Text("Mark As Not Complete"))
+                  ],
+                )
+              ],
+            ),
           ),
         ));
   }
@@ -188,6 +249,7 @@ class _EachCategoryState extends State<EachCategory> {
                         setState(() {
                           pressedCompleted = false;
                           pressedNotCompleted = true;
+                          _isLoading = true;
                         });
                         getTodos(
                             "${globalConstants.severIp}/todos/Notcompleted");
@@ -206,6 +268,7 @@ class _EachCategoryState extends State<EachCategory> {
                           setState(() {
                             pressedCompleted = true;
                             pressedNotCompleted = false;
+                            _isLoading = true;
                           });
                           getTodos(
                               "${globalConstants.severIp}/todos/completed");
@@ -224,23 +287,22 @@ class _EachCategoryState extends State<EachCategory> {
               SizedBox(
                 height: 15,
               ),
-              _getAllTodos
-                  ? ListView.builder(
+              _isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : ListView.builder(
                       physics: NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
-                      itemCount: _isLoading ? todos.length : todos.length,
+                      itemCount: todos.length,
                       itemBuilder: (context, index) {
                         if (todos.length == index) {
                           return Center(child: CircularProgressIndicator());
                         }
-                        // print(todos);
                         return data(todos[index]);
-                        // return categories[index];
                       },
-                    )
-                  : CircularProgressIndicator(),
-              _getAllTodos
-                  ? Align(
+                    ),
+              _isLoading
+                  ? Container()
+                  : Align(
                       alignment: Alignment.bottomRight,
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
@@ -250,8 +312,7 @@ class _EachCategoryState extends State<EachCategory> {
                           },
                           child: Icon(Icons.add),
                         ),
-                      ))
-                  : Container(),
+                      )),
             ],
           )),
         ),

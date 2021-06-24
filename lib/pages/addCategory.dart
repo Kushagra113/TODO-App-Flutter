@@ -19,6 +19,8 @@ class _AddCategoryState extends State<AddCategory> {
   bool error = false;
   var errorText = "";
   var responseBody;
+  bool _isLoading = false;
+  bool _addCategory = true;
 
   void addCategory() async {
     setState(() {
@@ -33,12 +35,10 @@ class _AddCategoryState extends State<AddCategory> {
           (route) => false);
     } else {
       try {
+        var headers = await globalConstants.tokenRead();
         var url = Uri.parse('${globalConstants.severIp}/category');
         var response = await http.post(url,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'text': textController.text}));
+            headers: headers, body: jsonEncode({'text': textController.text}));
         responseBody = jsonDecode(response.body);
         Navigator.pop(context, [responseBody['_id'], responseBody['text']]);
       } catch (err) {
@@ -129,20 +129,33 @@ class _AddCategoryState extends State<AddCategory> {
         child: Column(
           children: <Widget>[
             categoryField(),
-            ElevatedButton(
-              onPressed: () {
-                // print(textController.text);
-                if (textController.text == "") {
-                  setState(() {
-                    error = true;
-                    errorText = "Please Enter Category Name to Add Category";
-                  });
-                } else {
-                  addCategory();
-                }
-              },
-              child: Text("Add Category"),
-            ),
+            _addCategory
+                ? ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _isLoading = true;
+                      });
+                      // print(textController.text);
+                      if (textController.text == "") {
+                        setState(() {
+                          _isLoading = false;
+                          error = true;
+                          errorText =
+                              "Please Enter Category Name to Add Category";
+                        });
+                      } else {
+                        setState(() {
+                          _addCategory = false;
+                        });
+                        addCategory();
+                      }
+                    },
+                    child: Text("Add Category"),
+                  )
+                : Container(),
+            _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : Container(),
             error
                 ? Text(
                     errorText,

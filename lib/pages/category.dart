@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
 import 'package:todo_flutter_app/pages/login.dart';
 import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
-import 'package:jwt_decoder/jwt_decoder.dart';
 
 class Category extends StatefulWidget {
   const Category({Key? key}) : super(key: key);
@@ -20,6 +19,7 @@ class _CategoryState extends State<Category> {
   bool _isLoading = false;
   bool _emailset = false;
   bool _getAllcategory = false;
+  bool isServerError = false;
   final TextStyle fontSize = TextStyle(fontSize: 17);
   static ScrollController _controller = ScrollController();
   late var result;
@@ -37,28 +37,82 @@ class _CategoryState extends State<Category> {
   }
 
   Future<void> getAllCategories() async {
-    print(globalConstants.severIp);
-    try {
-      var result =
-          await http.get(Uri.parse("${globalConstants.severIp}/category/all"));
-      var allCategories = jsonDecode(result.body);
-      categories.removeRange(0, categories.length);
-      allCategories.forEach((category) => {
-            categories.add(CategoryBlueprint(
-                id: category['_id'], category: category['text']))
-          });
-      setState(() {
-        _getAllcategory = true;
-      });
-    } catch (err) {
-      setState(() {
-        serverError = "Some Error Occured While Retreving Categories";
-      });
+    if (this.mounted) {
+      try {
+        var headers = await globalConstants.tokenRead();
+        var result = await http.get(
+            Uri.parse("${globalConstants.severIp}/category/all"),
+            headers: headers);
+        var allCategories = jsonDecode(result.body);
+        categories.removeRange(0, categories.length);
+        allCategories.forEach((category) => {
+              categories.add(CategoryBlueprint(
+                  id: category['_id'], category: category['text']))
+            });
+        setState(() {
+          _getAllcategory = true;
+          isServerError = false;
+        });
+      } catch (err) {
+        setState(() {
+          isServerError = true;
+          serverError = "Some Error Occured While Retreving Categories";
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteCategory(
+      CategoryBlueprint element, String categoryName, String categoryId) async {
+    var result = await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Are you sure?'),
+            content: Text("You dont want to Delete Category $categoryName"),
+            actions: <Widget>[
+              TextButton(
+                child: Text('NO'),
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+              ),
+              TextButton(
+                child: Text('YES'),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+              ),
+            ],
+          );
+        });
+    if (result) {
+      var headers = await globalConstants.tokenRead();
+      var deleteRequest = await http.delete(
+          Uri.parse("${globalConstants.severIp}/category/delete/$categoryId"),
+          headers: headers);
+      if (jsonDecode(deleteRequest.body)['success'] != null) {
+        final snackBar = SnackBar(
+          content: Text(
+            'Deletion Of $categoryName Successfull',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        );
+        setState(() {
+          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          categories.remove(element);
+        });
+      }
+      // else if(jsonDecode(deleteRequest.body)['err']!=null){
+
+      // }
     }
   }
 
   void checkLogin() async {
     bool result = await validLogin();
+    print(result);
     if (result) {
       Navigator.pushAndRemoveUntil(
           context,
@@ -77,8 +131,6 @@ class _CategoryState extends State<Category> {
   Widget data(element) {
     return GestureDetector(
         onTap: () {
-          // testRequest();
-          // print(element.id);
           Navigator.push(
               context,
               MaterialPageRoute(
@@ -91,16 +143,27 @@ class _CategoryState extends State<Category> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
+              // ),
               Padding(
-                padding: const EdgeInsets.all(15.0),
+                padding: const EdgeInsets.all(10.0),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     Text(
                       element.category,
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _deleteCategory(element, element.category, element.id);
+                      },
+                      icon: Icon(
+                        Icons.delete,
+                        color: Colors.black54,
+                      ),
                     )
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ));
@@ -114,56 +177,64 @@ class _CategoryState extends State<Category> {
             ? Text(" ${decodedToken['email']} Page")
             : Text("Category"),
       ),
-      body: RefreshIndicator(
-        onRefresh: getAllCategories,
-        child: SingleChildScrollView(
-          controller: _controller,
-          physics: AlwaysScrollableScrollPhysics(),
-          child: Container(
-              child: Column(
-            children: <Widget>[
-              Center(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(0, 20, 0, 0),
-                  child: Text(
-                    "Categories",
-                    style:
-                        TextStyle(fontSize: 25, color: Colors.green.shade800),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 20,
-              ),
-              ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount:
-                    _isLoading ? categories.length + 1 : categories.length,
-                itemBuilder: (context, index) {
-                  if (categories.length == index) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                  return data(categories[index]);
-                  // return categories[index];
-                },
-              ),
-              // _getAllcategory : Center(child: CircularProgressIndicator()),
-              Align(
-                  alignment: Alignment.bottomRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        addCategory();
-                      },
-                      child: Icon(Icons.add),
+      body: _getAllcategory
+          ? RefreshIndicator(
+              onRefresh: getAllCategories,
+              child: isServerError
+                  ? Center(
+                      child: Text(serverError),
+                    )
+                  : SingleChildScrollView(
+                      controller: _controller,
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: Container(
+                          child: Column(
+                        children: <Widget>[
+                          Center(
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(0, 20, 0, 0),
+                              child: Text(
+                                "Categories",
+                                style: TextStyle(
+                                    fontSize: 25, color: Colors.green.shade800),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 20,
+                          ),
+                          ListView.builder(
+                            physics: NeverScrollableScrollPhysics(),
+                            shrinkWrap: true,
+                            itemCount: _isLoading
+                                ? categories.length + 1
+                                : categories.length,
+                            itemBuilder: (context, index) {
+                              if (categories.length == index) {
+                                return Center(
+                                    child: CircularProgressIndicator());
+                              }
+                              return data(categories[index]);
+                              // return categories[index];
+                            },
+                          ),
+                          // _getAllcategory : Center(child: CircularProgressIndicator()),
+                          Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: FloatingActionButton(
+                                  onPressed: () {
+                                    addCategory();
+                                  },
+                                  child: Icon(Icons.add),
+                                ),
+                              )),
+                        ],
+                      )),
                     ),
-                  )),
-            ],
-          )),
-        ),
-      ),
+            )
+          : Center(child: CircularProgressIndicator()),
     );
   }
 }

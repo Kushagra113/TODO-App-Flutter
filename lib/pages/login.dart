@@ -22,13 +22,13 @@ class _LoginState extends State<Login> {
   bool timeText = false;
   bool isLoading = false;
   bool resendOtp = false;
+  bool loading = false;
   bool boxes = false;
   var requestId;
 
   final emailController = TextEditingController();
-  int serverotp = 1111;
   final _formKey = GlobalKey<FormState>();
-
+  final CustomTimerController _Timecontroller = new CustomTimerController();
   void sendOtpRequest() async {
     var result =
         await http.post(Uri.parse("${globalConstants.severIp}/otp/sendOtp"),
@@ -36,7 +36,9 @@ class _LoginState extends State<Login> {
               'Content-Type': 'application/json',
             },
             body: jsonEncode({'emailaddress': emailController.text}));
+    print(result.body);
     var resultBody = jsonDecode(result.body);
+    print(resultBody);
     requestId = resultBody['id'];
     // requestId = resultBody
     setState(() {
@@ -119,7 +121,8 @@ class _LoginState extends State<Login> {
             const Text('Please Check the OTP u have received and Enter It'),
         actions: <Widget>[
           TextButton(
-            onPressed: () => Navigator.pop(context, 'OK'),
+            onPressed: () =>
+                {Navigator.pop(context, 'OK'), _Timecontroller.start()},
             child: const Text('OK'),
           ),
         ],
@@ -140,6 +143,12 @@ class _LoginState extends State<Login> {
         print(value);
       },
       onCompleted: (String pin) async {
+        setState(() {
+          isLoading = true;
+          // timeText = false;
+          // otpfield = false;
+        });
+        _Timecontroller.pause();
         var result = await http.post(
             Uri.parse("${globalConstants.severIp}/otp/verifyOtp"),
             headers: {
@@ -150,9 +159,15 @@ class _LoginState extends State<Login> {
         if (resultBody['accessToken'] != null) {
           await globalStorage.storage
               .write(key: 'jwt', value: resultBody['accessToken']);
+          setState(() {
+            isLoading = false;
+          });
           Navigator.pushNamedAndRemoveUntil(
               context, "/category", (Route<dynamic> route) => false);
         } else {
+          setState(() {
+            isLoading = false;
+          });
           dialog();
           // print("Invalid");
         }
@@ -164,6 +179,7 @@ class _LoginState extends State<Login> {
     return CustomTimer(
       from: Duration(minutes: 5),
       to: Duration(minutes: 0),
+      controller: _Timecontroller,
       onBuildAction: CustomTimerAction.auto_start,
       builder: (CustomTimerRemainingTime remaining) {
         return Text(
