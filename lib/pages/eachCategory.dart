@@ -185,17 +185,12 @@ class _EachCategoryState extends State<EachCategory> {
                   indent: 10,
                   thickness: 1,
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 10, 5, 10),
-                      child: Text(
-                        element.todoDescription,
-                        style: TextStyle(fontSize: 17),
-                      ),
-                    ),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 5, 10),
+                  child: Text(
+                    element.todoDescription,
+                    style: TextStyle(fontSize: 17),
+                  ),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -302,17 +297,19 @@ class _EachCategoryState extends State<EachCategory> {
                     ),
               _isLoading
                   ? Container()
-                  : Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: FloatingActionButton(
-                          onPressed: () {
-                            addTodo();
-                          },
-                          child: Icon(Icons.add),
-                        ),
-                      )),
+                  : pressedNotCompleted
+                      ? Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: FloatingActionButton(
+                              onPressed: () {
+                                addTodo();
+                              },
+                              child: Icon(Icons.add),
+                            ),
+                          ))
+                      : Container()
             ],
           )),
         ),
