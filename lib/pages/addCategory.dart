@@ -97,7 +97,7 @@ class _AddCategoryState extends State<AddCategory> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text('Are you sure?'),
-            content: Text("You dont want to Add Category"),
+            content: Text("You dont want to Add Category ?"),
             actions: <Widget>[
               TextButton(
                 child: Text('NO'),

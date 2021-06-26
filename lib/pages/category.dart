@@ -17,6 +17,7 @@ class Category extends StatefulWidget {
 
 class _CategoryState extends State<Category> {
   bool _isLoading = false;
+  bool _refreshPage = false;
   bool _emailset = false;
   bool _getAllcategory = false;
   bool isServerError = false;
@@ -37,29 +38,31 @@ class _CategoryState extends State<Category> {
   }
 
   Future<void> getAllCategories() async {
-    if (this.mounted) {
-      try {
-        var headers = await globalConstants.tokenRead();
-        var result = await http.get(
-            Uri.parse("${globalConstants.severIp}/category/all"),
-            headers: headers);
-        var allCategories = jsonDecode(result.body);
-        categories.removeRange(0, categories.length);
-        allCategories.forEach((category) => {
-              categories.add(CategoryBlueprint(
-                  id: category['_id'], category: category['text']))
-            });
-        setState(() {
-          _getAllcategory = true;
-          isServerError = false;
-        });
-      } catch (err) {
-        setState(() {
-          isServerError = true;
-          serverError = "Some Error Occured While Retreving Categories";
-        });
-      }
+    // if (this.mounted) {
+    try {
+      var headers = await globalConstants.tokenRead();
+      var result = await http.get(
+          Uri.parse("${globalConstants.severIp}/category/all"),
+          headers: headers);
+      var allCategories = jsonDecode(result.body);
+      categories.removeRange(0, categories.length);
+      allCategories.forEach((category) => {
+            categories.add(CategoryBlueprint(
+                id: category['_id'], category: category['text']))
+          });
+      setState(() {
+        _getAllcategory = true;
+        isServerError = false;
+      });
+    } catch (err) {
+      print(err);
+      setState(() {
+        _refreshPage = false;
+        isServerError = true;
+        serverError = "Some Error Occured While Retreving Categories";
+      });
     }
+    // }
   }
 
   Future<void> _deleteCategory(
@@ -69,7 +72,7 @@ class _CategoryState extends State<Category> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text('Are you sure?'),
-            content: Text("You dont want to Delete Category $categoryName"),
+            content: Text("You Want to Delete Category $categoryName ?"),
             actions: <Widget>[
               TextButton(
                 child: Text('NO'),
@@ -177,64 +180,87 @@ class _CategoryState extends State<Category> {
             ? Text(" ${decodedToken['email']} Page")
             : Text("Category"),
       ),
-      body: _getAllcategory
-          ? RefreshIndicator(
-              onRefresh: getAllCategories,
-              child: isServerError
-                  ? Center(
-                      child: Text(serverError),
-                    )
-                  : SingleChildScrollView(
-                      controller: _controller,
-                      physics: AlwaysScrollableScrollPhysics(),
-                      child: Container(
-                          child: Column(
-                        children: <Widget>[
-                          Center(
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(0, 20, 0, 0),
-                              child: Text(
-                                "Categories",
-                                style: TextStyle(
-                                    fontSize: 25, color: Colors.green.shade800),
-                              ),
+      body: isServerError
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      serverError,
+                      style: TextStyle(
+                        color: Colors.red.shade900,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _refreshPage = true;
+                      });
+                      getAllCategories();
+                    },
+                    child: Text("Refresh Page")),
+                _refreshPage ? CircularProgressIndicator() : Container()
+              ],
+            )
+          : _getAllcategory
+              ? RefreshIndicator(
+                  onRefresh: getAllCategories,
+                  child: SingleChildScrollView(
+                    controller: _controller,
+                    physics: AlwaysScrollableScrollPhysics(),
+                    child: Container(
+                        child: Column(
+                      children: <Widget>[
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(0, 20, 0, 0),
+                            child: Text(
+                              "Categories",
+                              style: TextStyle(
+                                  fontSize: 25, color: Colors.green.shade800),
                             ),
                           ),
-                          SizedBox(
-                            height: 20,
-                          ),
-                          ListView.builder(
-                            physics: NeverScrollableScrollPhysics(),
-                            shrinkWrap: true,
-                            itemCount: _isLoading
-                                ? categories.length + 1
-                                : categories.length,
-                            itemBuilder: (context, index) {
-                              if (categories.length == index) {
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              }
-                              return data(categories[index]);
-                              // return categories[index];
-                            },
-                          ),
-                          // _getAllcategory : Center(child: CircularProgressIndicator()),
-                          Align(
-                              alignment: Alignment.bottomRight,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: FloatingActionButton(
-                                  onPressed: () {
-                                    addCategory();
-                                  },
-                                  child: Icon(Icons.add),
-                                ),
-                              )),
-                        ],
-                      )),
-                    ),
-            )
-          : Center(child: CircularProgressIndicator()),
+                        ),
+                        SizedBox(
+                          height: 20,
+                        ),
+                        ListView.builder(
+                          physics: NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _isLoading
+                              ? categories.length + 1
+                              : categories.length,
+                          itemBuilder: (context, index) {
+                            if (categories.length == index) {
+                              return Center(child: CircularProgressIndicator());
+                            }
+                            return data(categories[index]);
+                            // return categories[index];
+                          },
+                        ),
+                        // _getAllcategory : Center(child: CircularProgressIndicator()),
+                        Align(
+                            alignment: Alignment.bottomRight,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: FloatingActionButton(
+                                onPressed: () {
+                                  addCategory();
+                                },
+                                child: Icon(Icons.add),
+                              ),
+                            )),
+                      ],
+                    )),
+                  ),
+                )
+              : Center(child: CircularProgressIndicator()),
     );
   }
 }

@@ -20,7 +20,6 @@ class _EachCategoryState extends State<EachCategory> {
   late final String categoryId;
   late final String category;
   bool _isLoading = true;
-  bool _getAllTodos = false;
   final TextStyle fontSize = TextStyle(fontSize: 17);
   static ScrollController _controller = ScrollController();
   late var result;
@@ -33,7 +32,7 @@ class _EachCategoryState extends State<EachCategory> {
     result = await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => AddTodo(categoryId),
+          builder: (context) => AddTodo(categoryId, "", "", false, ""),
         ));
     if (result != null) {
       setState(() {
@@ -78,7 +77,6 @@ class _EachCategoryState extends State<EachCategory> {
               todoStatus: todo['status']))
         });
     setState(() {
-      _getAllTodos = true;
       _isLoading = false;
     });
   }
@@ -102,13 +100,31 @@ class _EachCategoryState extends State<EachCategory> {
     }
   }
 
+  void _editTodo(TodoBlueprint todo) async {
+    var result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddTodo(todo.categoryId, todo.todoTitle,
+              todo.todoDescription, true, todo.id),
+        ));
+    setState(() {
+      todos.remove(todo);
+      todos.add(TodoBlueprint(
+          id: todo.id,
+          categoryId: categoryId,
+          todoTitle: result[1],
+          todoDescription: result[2],
+          todoStatus: todo.todoStatus));
+    });
+  }
+
   void _deleteTodo(TodoBlueprint todo) async {
     var result = await showDialog(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text('Are you sure?'),
-            content: Text("You dont want to Delete Todo ${todo.todoTitle}"),
+            content: Text("You Want to Delete Todo ${todo.todoTitle} ?"),
             actions: <Widget>[
               TextButton(
                 child: Text('NO'),
@@ -125,23 +141,25 @@ class _EachCategoryState extends State<EachCategory> {
             ],
           );
         });
-    if (result) {
-      var headers = await globalConstants.tokenRead();
-      var deleteRequest = await http.delete(
-          Uri.parse("${globalConstants.severIp}/todos/delete/${todo.id}"),
-          headers: headers);
-      if (jsonDecode(deleteRequest.body)['success'] != null) {
-        final snackBar = SnackBar(
-          content: Text(
-            'Deletion Of ${todo.todoTitle} Successfull',
-            style: TextStyle(fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
-        );
-        setState(() {
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
-          todos.remove(todo);
-        });
+    if (result != null) {
+      if (result) {
+        var headers = await globalConstants.tokenRead();
+        var deleteRequest = await http.delete(
+            Uri.parse("${globalConstants.severIp}/todos/delete/${todo.id}"),
+            headers: headers);
+        if (jsonDecode(deleteRequest.body)['success'] != null) {
+          final snackBar = SnackBar(
+            content: Text(
+              'Deletion Of ${todo.todoTitle} Successfull',
+              style: TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          );
+          setState(() {
+            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+            todos.remove(todo);
+          });
+        }
       }
     }
   }
@@ -157,6 +175,7 @@ class _EachCategoryState extends State<EachCategory> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(5, 2, 0, 0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -193,8 +212,18 @@ class _EachCategoryState extends State<EachCategory> {
                   ),
                 ),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
+                    TextButton(
+                        onPressed: () {
+                          _editTodo(element);
+                        },
+                        child: element.todoStatus == "NC"
+                            ? Text(
+                                "Edit",
+                                style: TextStyle(fontSize: 15),
+                              )
+                            : Container()),
                     TextButton(
                         onPressed: () {
                           todos.remove(element);
@@ -208,7 +237,7 @@ class _EachCategoryState extends State<EachCategory> {
                                 "Mark As Complete",
                                 style: TextStyle(fontSize: 15),
                               )
-                            : Text("Mark As Not Complete"))
+                            : Text("Mark As Not Complete")),
                   ],
                 )
               ],
