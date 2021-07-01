@@ -6,7 +6,7 @@ import 'package:todo_flutter_app/pages/eachCategory.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
 import 'package:todo_flutter_app/pages/login.dart';
-import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
+// import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 
 class Category extends StatefulWidget {
   const Category({Key? key}) : super(key: key);
@@ -32,7 +32,8 @@ class _CategoryState extends State<Category> {
     print("Res" + result.toString());
     if (result != null) {
       setState(() {
-        categories.add(CategoryBlueprint(id: result[0], category: result[1]));
+        categories.add(
+            CategoryBlueprint(id: result[0], category: result[1], c: 0, nc: 0));
       });
     }
   }
@@ -40,6 +41,7 @@ class _CategoryState extends State<Category> {
   Future<void> getAllCategories() async {
     // if (this.mounted) {
     try {
+      var complete, notcomplete;
       var headers = await globalConstants.tokenRead();
       var result = await http.get(
           Uri.parse("${globalConstants.severIp}/category/all"),
@@ -47,8 +49,17 @@ class _CategoryState extends State<Category> {
       var allCategories = jsonDecode(result.body);
       categories.removeRange(0, categories.length);
       allCategories.forEach((category) => {
+            notcomplete = category['NotcompletedTodos'].length == 0
+                ? 0
+                : category['NotcompletedTodos'][0]['NotcompletedTodos'],
+            complete = category['CompletedTodos'].length == 0
+                ? 0
+                : category['CompletedTodos'][0]['CompletedTodos'],
             categories.add(CategoryBlueprint(
-                id: category['_id'], category: category['text']))
+                id: category['_id'],
+                category: category['text'],
+                c: complete,
+                nc: notcomplete))
           });
       setState(() {
         _getAllcategory = true;
@@ -137,8 +148,8 @@ class _CategoryState extends State<Category> {
           Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    EachCategory(element.id, element.category),
+                builder: (context) => EachCategory(
+                    element.id, element.category, element.c, element.nc),
               ));
         },
         child: Card(
@@ -146,15 +157,25 @@ class _CategoryState extends State<Category> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
-              // ),
               Padding(
-                padding: const EdgeInsets.all(10.0),
+                padding: const EdgeInsets.fromLTRB(8, 10, 2, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      "Status: ${element.c}/${element.nc + element.c}",
+                      textAlign: TextAlign.start,
+                      style: TextStyle(fontSize: 15),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    Text(
-                      element.category,
-                    ),
+                    Text(element.category, style: TextStyle(fontSize: 15)),
                     IconButton(
                       onPressed: () {
                         _deleteCategory(element, element.category, element.id);
@@ -176,14 +197,13 @@ class _CategoryState extends State<Category> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _emailset
-            ? Text(" ${decodedToken['email']} Page")
-            : Text("Category"),
+        title: _emailset ? Text("Page") : Container(),
+        centerTitle: true,
       ),
       body: isServerError
           ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              // mainAxisAlignment: MainAxisAlignment.center,
+              // crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -244,7 +264,6 @@ class _CategoryState extends State<Category> {
                             // return categories[index];
                           },
                         ),
-                        // _getAllcategory : Center(child: CircularProgressIndicator()),
                         Align(
                             alignment: Alignment.bottomRight,
                             child: Padding(

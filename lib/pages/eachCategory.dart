@@ -10,23 +10,36 @@ import 'package:todo_flutter_app/pages/login.dart';
 class EachCategory extends StatefulWidget {
   late final String id;
   late final String category;
-  EachCategory(this.id, this.category);
+  late final int nc;
+  late final int c;
+  EachCategory(this.id, this.category, this.c, this.nc);
 //  {Key? key}     : super(key: key);
   @override
-  _EachCategoryState createState() => _EachCategoryState(id, category);
+  _EachCategoryState createState() => _EachCategoryState(id, category, nc, c);
 }
 
 class _EachCategoryState extends State<EachCategory> {
   late final String categoryId;
   late final String category;
+  late int nc;
+  late int c;
   bool _isLoading = true;
   final TextStyle fontSize = TextStyle(fontSize: 17);
   static ScrollController _controller = ScrollController();
   late var result;
-  _EachCategoryState(this.categoryId, this.category);
-  List<TodoBlueprint> todos = [];
+  List<TodoBlueprint> notCompletedTodos = [];
+  List<TodoBlueprint> completedTodos = [];
   bool pressedCompleted = false;
   bool pressedNotCompleted = true;
+  bool viewMore = false;
+  bool addButton = false;
+  late int skipComplete;
+  late int limitComplete;
+  late int skipNotComplete;
+  late int limitNotComplete;
+  bool completeFirst = true;
+
+  _EachCategoryState(this.categoryId, this.category, this.nc, this.c);
 
   void addTodo() async {
     result = await Navigator.push(
@@ -36,7 +49,7 @@ class _EachCategoryState extends State<EachCategory> {
         ));
     if (result != null) {
       setState(() {
-        todos.add(TodoBlueprint(
+        notCompletedTodos.add(TodoBlueprint(
             id: result[0],
             categoryId: categoryId,
             todoTitle: result[2],
@@ -48,28 +61,31 @@ class _EachCategoryState extends State<EachCategory> {
 
   void markAsNotComplete(String id) async {
     var headers = await globalConstants.tokenRead();
-    await http.put(Uri.parse("${globalConstants.severIp}/todos/Markcomplete"),
-        headers: headers,
-        body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
-  }
-
-  void getNotCompletedTodos(String id) async {
-    var headers = await globalConstants.tokenRead();
     await http.put(
         Uri.parse("${globalConstants.severIp}/todos/Marknotcomplete"),
         headers: headers,
         body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
   }
 
-  Future<void> getTodos(String url) async {
+  void markAsComplete(String id) async {
+    var headers = await globalConstants.tokenRead();
+    await http.put(Uri.parse("${globalConstants.severIp}/todos/Markcomplete"),
+        headers: headers,
+        body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
+  }
+
+  Future<void> getCompletedTodos(String url, int limit, int skip) async {
     var headers = await globalConstants.tokenRead();
     var result = await http.post(Uri.parse(url),
-        headers: headers, body: jsonEncode({'categoryId': categoryId}));
+        headers: headers,
+        body: jsonEncode(
+            {'categoryId': categoryId, 'limit': limit, 'skip': skip}));
     var allTodos = jsonDecode(result.body);
-    todos.removeRange(0, todos.length);
-    // print(allTodos);
+    if (!viewMore) {
+      completedTodos.removeRange(0, completedTodos.length);
+    } else {}
     allTodos.forEach((todo) => {
-          todos.add(TodoBlueprint(
+          completedTodos.add(TodoBlueprint(
               id: todo['_id'],
               categoryId: todo['categoryId'],
               todoTitle: todo['title'],
@@ -77,6 +93,30 @@ class _EachCategoryState extends State<EachCategory> {
               todoStatus: todo['status']))
         });
     setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> getNotCompeletedTodos(String url, int limit, int skip) async {
+    var headers = await globalConstants.tokenRead();
+    var result = await http.post(Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(
+            {'categoryId': categoryId, 'limit': limit, 'skip': skip}));
+    var allTodos = jsonDecode(result.body);
+    if (!viewMore) {
+      notCompletedTodos.removeRange(0, notCompletedTodos.length);
+    } else {}
+    allTodos.forEach((todo) => {
+          notCompletedTodos.add(TodoBlueprint(
+              id: todo['_id'],
+              categoryId: todo['categoryId'],
+              todoTitle: todo['title'],
+              todoDescription: todo['description'],
+              todoStatus: todo['status']))
+        });
+    setState(() {
+      viewMore = false;
       _isLoading = false;
     });
   }
@@ -95,8 +135,21 @@ class _EachCategoryState extends State<EachCategory> {
   void initState() {
     super.initState();
     checkLogin();
+    setState(() {
+      skipNotComplete = 4;
+      limitNotComplete = notCompletedTodos.length;
+    });
     if (this.mounted) {
-      getTodos("${globalConstants.severIp}/todos/Notcompleted");
+      getNotCompeletedTodos("${globalConstants.severIp}/todos/Notcompleted",
+              skipNotComplete, limitNotComplete)
+          .then((value) => {
+                if (notCompletedTodos.length >= nc)
+                  {
+                    setState(() {
+                      addButton = true;
+                    })
+                  }
+              });
     }
   }
 
@@ -108,8 +161,8 @@ class _EachCategoryState extends State<EachCategory> {
               todo.todoDescription, true, todo.id),
         ));
     setState(() {
-      todos.remove(todo);
-      todos.add(TodoBlueprint(
+      notCompletedTodos.remove(todo);
+      notCompletedTodos.add(TodoBlueprint(
           id: todo.id,
           categoryId: categoryId,
           todoTitle: result[1],
@@ -148,6 +201,7 @@ class _EachCategoryState extends State<EachCategory> {
             Uri.parse("${globalConstants.severIp}/todos/delete/${todo.id}"),
             headers: headers);
         if (jsonDecode(deleteRequest.body)['success'] != null) {
+          todo.todoStatus == "NC" ? nc -= 1 : c -= 1;
           final snackBar = SnackBar(
             content: Text(
               'Deletion Of ${todo.todoTitle} Successfull',
@@ -157,7 +211,13 @@ class _EachCategoryState extends State<EachCategory> {
           );
           setState(() {
             ScaffoldMessenger.of(context).showSnackBar(snackBar);
-            todos.remove(todo);
+            if (todo.todoStatus == "NC") {
+              notCompletedTodos.remove(todo);
+              nc -= 1;
+            } else {
+              completedTodos.remove(todo);
+              c -= 1;
+            }
           });
         }
       }
@@ -226,10 +286,17 @@ class _EachCategoryState extends State<EachCategory> {
                             : Container()),
                     TextButton(
                         onPressed: () {
-                          todos.remove(element);
-                          element.todoStatus == "NC"
-                              ? markAsNotComplete(element.id)
-                              : getNotCompletedTodos(element.id);
+                          if (element.todoStatus == "NC") {
+                            notCompletedTodos.remove(element);
+                            markAsComplete(element.id);
+                            nc -= 1;
+                            c += 1;
+                          } else {
+                            completedTodos.remove(element);
+                            markAsNotComplete(element.id);
+                            c -= 1;
+                            nc += 1;
+                          }
                           setState(() {});
                         },
                         child: element.todoStatus == "NC"
@@ -246,6 +313,59 @@ class _EachCategoryState extends State<EachCategory> {
         ));
   }
 
+  Widget viewMoreButton() {
+    return Container(
+        margin: EdgeInsets.fromLTRB(40, 5, 40, 5),
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            fixedSize: Size.fromWidth(10.0),
+          ),
+          onPressed: () {
+            setState(() {
+              viewMore = true;
+              if (pressedCompleted) {
+                limitComplete = 4;
+                skipComplete = completedTodos.length;
+              } else {
+                limitNotComplete = 4;
+                skipNotComplete = notCompletedTodos.length;
+              }
+            });
+            pressedNotCompleted
+                ? getNotCompeletedTodos(
+                        "${globalConstants.severIp}/todos/Notcompleted",
+                        limitNotComplete,
+                        skipNotComplete)
+                    .then((value) => {
+                          if (notCompletedTodos.length >= nc)
+                            {
+                              setState(() {
+                                viewMore = false;
+                                addButton = true;
+                              })
+                            }
+                        })
+                : getCompletedTodos(
+                        "${globalConstants.severIp}/todos/completed",
+                        limitComplete,
+                        skipComplete)
+                    .then((value) => {
+                          print("hi"),
+                          if (completedTodos.length >= c)
+                            {
+                              setState(() {
+                                viewMore = false;
+                              })
+                            }
+                        });
+          },
+          child: Text(
+            "View More",
+            style: TextStyle(fontSize: 20),
+          ),
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -253,95 +373,151 @@ class _EachCategoryState extends State<EachCategory> {
         title: Center(child: Text("Todos Of Category $category")),
       ),
       body: RefreshIndicator(
-        onRefresh: () => pressedCompleted
-            ? getTodos("${globalConstants.severIp}/todos/completed")
-            : getTodos("${globalConstants.severIp}/todos/Notcompleted"),
-        child: SingleChildScrollView(
-          controller: _controller,
-          physics: AlwaysScrollableScrollPhysics(),
-          child: Container(
-              // : Center(child: CircularProgressIndicator()),
-              child: Column(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 15, 20, 5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          pressedCompleted = false;
-                          pressedNotCompleted = true;
-                          _isLoading = true;
-                        });
-                        getTodos(
-                            "${globalConstants.severIp}/todos/Notcompleted");
-                      },
-                      style: ButtonStyle(backgroundColor:
-                          MaterialStateProperty.resolveWith<Color>((states) {
-                        if (pressedNotCompleted) {
-                          return Colors.grey.shade300;
-                        }
-                        return Colors.transparent;
-                      })),
-                      child: Text("Not Completed", style: fontSize),
-                    ),
-                    OutlinedButton(
+        onRefresh: () {
+          setState(() {
+            skipComplete = 0;
+            skipNotComplete = 0;
+            limitComplete = completedTodos.length;
+            limitNotComplete = notCompletedTodos.length;
+          });
+          return pressedCompleted
+              ? getCompletedTodos("${globalConstants.severIp}/todos/completed",
+                  limitComplete, skipComplete)
+              : getNotCompeletedTodos(
+                  "${globalConstants.severIp}/todos/Notcompleted",
+                  limitNotComplete,
+                  skipNotComplete);
+        },
+        child: Container(
+          child: SingleChildScrollView(
+            controller: _controller,
+            physics: AlwaysScrollableScrollPhysics(),
+            child: Container(
+                // : Center(child: CircularProgressIndicator()),
+                child: Column(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 15, 20, 5),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      OutlinedButton(
                         onPressed: () {
                           setState(() {
-                            pressedCompleted = true;
-                            pressedNotCompleted = false;
+                            pressedCompleted = false;
+                            pressedNotCompleted = true;
                             _isLoading = true;
+                            limitNotComplete = notCompletedTodos.length;
+                            skipNotComplete = 0;
                           });
-                          getTodos(
-                              "${globalConstants.severIp}/todos/completed");
+                          getNotCompeletedTodos(
+                              "${globalConstants.severIp}/todos/Notcompleted",
+                              limitNotComplete,
+                              skipNotComplete);
                         },
                         style: ButtonStyle(backgroundColor:
                             MaterialStateProperty.resolveWith<Color>((states) {
-                          if (pressedCompleted) {
+                          if (pressedNotCompleted) {
                             return Colors.grey.shade300;
                           }
                           return Colors.transparent;
                         })),
-                        child: Text("Completed", style: fontSize)),
-                  ],
+                        child: Text("Not Completed", style: fontSize),
+                      ),
+                      OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              pressedCompleted = true;
+                              pressedNotCompleted = false;
+                              _isLoading = true;
+                              limitComplete =
+                                  completeFirst ? 4 : completedTodos.length;
+                              skipComplete = 0;
+                              completeFirst = false;
+                            });
+                            print(limitComplete);
+                            print(skipComplete);
+                            getCompletedTodos(
+                                "${globalConstants.severIp}/todos/completed",
+                                limitComplete,
+                                skipComplete);
+                          },
+                          style: ButtonStyle(backgroundColor:
+                              MaterialStateProperty.resolveWith<Color>(
+                                  (states) {
+                            if (pressedCompleted) {
+                              return Colors.grey.shade300;
+                            }
+                            return Colors.transparent;
+                          })),
+                          child: Text("Completed", style: fontSize)),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(
-                height: 15,
-              ),
-              _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      physics: NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: todos.length,
-                      itemBuilder: (context, index) {
-                        if (todos.length == index) {
-                          return Center(child: CircularProgressIndicator());
-                        }
-                        return data(todos[index]);
-                      },
-                    ),
-              _isLoading
-                  ? Container()
-                  : pressedNotCompleted
-                      ? Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: FloatingActionButton(
-                              onPressed: () {
-                                addTodo();
-                              },
-                              child: Icon(Icons.add),
-                            ),
-                          ))
-                      : Container()
-            ],
-          )),
+                SizedBox(
+                  height: 15,
+                ),
+                _isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        physics: NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: pressedCompleted
+                            ? completedTodos.length + 1
+                            : notCompletedTodos.length + 1,
+                        itemBuilder: (context, index) {
+                          if (pressedCompleted
+                              ? completedTodos.length == index
+                              : notCompletedTodos.length == index) {
+                            return pressedNotCompleted
+                                ? notCompletedTodos.length < nc
+                                    ? viewMoreButton()
+                                    : Container()
+                                : completedTodos.length < c
+                                    ? viewMoreButton()
+                                    : Container();
+                          }
+                          return pressedCompleted
+                              ? data(completedTodos[index])
+                              : data(notCompletedTodos[index]);
+                        },
+                      ),
+                _isLoading
+                    ? Container()
+                    : pressedNotCompleted
+                        ? addButton
+                            ? Align(
+                                alignment: Alignment.bottomRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: FloatingActionButton(
+                                    onPressed: () {
+                                      addTodo();
+                                    },
+                                    child: Icon(Icons.add),
+                                  ),
+                                ))
+                            : Container()
+                        : Container()
+              ],
+            )),
+          ),
         ),
+        // _isLoading
+        //     ? Container()
+        //     : pressedNotCompleted
+        //         ? Align(
+        //             alignment: Alignment.bottomRight,
+        //             child: Padding(
+        //               padding: const EdgeInsets.all(8.0),
+        //               child: FloatingActionButton(
+        //                 onPressed: () {
+        //                   addTodo();
+        //                 },
+        //                 child: Icon(Icons.add),
+        //               ),
+        //             ))
+        //         : Container()
       ),
     );
   }
