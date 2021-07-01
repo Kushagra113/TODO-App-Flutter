@@ -6,7 +6,8 @@ import 'package:todo_flutter_app/pages/eachCategory.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
 import 'package:todo_flutter_app/pages/login.dart';
-// import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 
 class Category extends StatefulWidget {
   const Category({Key? key}) : super(key: key);
@@ -24,8 +25,8 @@ class _CategoryState extends State<Category> {
   final TextStyle fontSize = TextStyle(fontSize: 17);
   static ScrollController _controller = ScrollController();
   late var result;
+  late var decodedToken;
   List<CategoryBlueprint> categories = [];
-  late Map<String, dynamic> decodedToken;
   String serverError = "";
   void addCategory() async {
     result = await Navigator.pushNamed(context, "/addCategory");
@@ -135,10 +136,19 @@ class _CategoryState extends State<Category> {
     }
   }
 
+  void setUsername() async {
+    var result = await globalStorage.storage.read(key: "jwt");
+    decodedToken = JwtDecoder.decode(result.toString());
+    setState(() {
+      _emailset = true;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     checkLogin();
+    setUsername();
     getAllCategories();
   }
 
@@ -197,7 +207,7 @@ class _CategoryState extends State<Category> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _emailset ? Text("Page") : Container(),
+        title: _emailset ? Text(decodedToken['email']) : Container(),
         centerTitle: true,
       ),
       body: isServerError
