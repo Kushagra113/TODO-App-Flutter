@@ -30,11 +30,14 @@ class _CategoryState extends State<Category> {
   String serverError = "";
   void addCategory() async {
     result = await Navigator.pushNamed(context, "/addCategory");
-    print("Res" + result.toString());
     if (result != null) {
       setState(() {
-        categories.add(
-            CategoryBlueprint(id: result[0], category: result[1], c: 0, nc: 0));
+        categories.add(CategoryBlueprint(
+            id: result[0],
+            groupId: "HardCode GroupId",
+            category: result[1],
+            c: 0,
+            nc: 0));
       });
     }
   }
@@ -58,6 +61,7 @@ class _CategoryState extends State<Category> {
                 : category['CompletedTodos'][0]['CompletedTodos'],
             categories.add(CategoryBlueprint(
                 id: category['_id'],
+                groupId: category['groupId'],
                 category: category['text'],
                 c: complete,
                 nc: notcomplete))

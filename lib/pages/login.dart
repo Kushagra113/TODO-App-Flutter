@@ -145,8 +145,6 @@ class _LoginState extends State<Login> {
       onCompleted: (String pin) async {
         setState(() {
           isLoading = true;
-          // timeText = false;
-          // otpfield = false;
         });
         _Timecontroller.pause();
         var result = await http.post(
@@ -201,9 +199,6 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Login To App"),
-      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

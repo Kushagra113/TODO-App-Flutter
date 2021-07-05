@@ -51,6 +51,7 @@ class _EachCategoryState extends State<EachCategory> {
       setState(() {
         notCompletedTodos.add(TodoBlueprint(
             id: result[0],
+            groupId: "HardCode GroupId",
             categoryId: categoryId,
             todoTitle: result[2],
             todoDescription: result[3],
@@ -87,6 +88,7 @@ class _EachCategoryState extends State<EachCategory> {
     allTodos.forEach((todo) => {
           completedTodos.add(TodoBlueprint(
               id: todo['_id'],
+              groupId: "HardCode GroupId",
               categoryId: todo['categoryId'],
               todoTitle: todo['title'],
               todoDescription: todo['description'],
@@ -110,6 +112,7 @@ class _EachCategoryState extends State<EachCategory> {
     allTodos.forEach((todo) => {
           notCompletedTodos.add(TodoBlueprint(
               id: todo['_id'],
+              groupId: "HardCode GroupId",
               categoryId: todo['categoryId'],
               todoTitle: todo['title'],
               todoDescription: todo['description'],
@@ -164,6 +167,7 @@ class _EachCategoryState extends State<EachCategory> {
       notCompletedTodos.remove(todo);
       notCompletedTodos.add(TodoBlueprint(
           id: todo.id,
+          groupId: "HardCode GroupId",
           categoryId: categoryId,
           todoTitle: result[1],
           todoDescription: result[2],
