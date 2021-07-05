@@ -42,6 +42,9 @@ class _CategoryState extends State<Category> {
   Future<void> getAllCategories() async {
     // if (this.mounted) {
     try {
+      setState(() {
+        _getAllcategory = false;
+      });
       var complete, notcomplete;
       var headers = await globalConstants.tokenRead();
       var result = await http.get(
@@ -152,15 +155,21 @@ class _CategoryState extends State<Category> {
     getAllCategories();
   }
 
+  void pushToTodoandgetAllCategories(element) async {
+    await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              EachCategory(element.id, element.category, element.c, element.nc),
+        ));
+    getAllCategories();
+  }
+
   Widget data(element) {
     return GestureDetector(
         onTap: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EachCategory(
-                    element.id, element.category, element.c, element.nc),
-              ));
+          pushToTodoandgetAllCategories(element);
+          print("Is this running");
         },
         child: Card(
           margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
