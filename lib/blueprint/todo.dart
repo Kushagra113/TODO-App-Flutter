@@ -1,5 +1,6 @@
 class TodoBlueprint {
   late String id;
+  late String groupId;
   late String categoryId;
   late String todoTitle;
   late String todoDescription;
@@ -7,6 +8,7 @@ class TodoBlueprint {
 
   TodoBlueprint(
       {required this.id,
+      required this.groupId,
       required this.categoryId,
       required this.todoTitle,
       required this.todoDescription,

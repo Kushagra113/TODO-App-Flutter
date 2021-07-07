@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:todo_flutter_app/global/jwtVerifyFunction.dart';
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
 import 'package:todo_flutter_app/pages/login.dart';
+import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 
 // ignore: must_be_immutable
 class AddTodo extends StatefulWidget {
@@ -35,6 +36,9 @@ class _AddTodoState extends State<AddTodo> {
   var responseBody;
   final _titleformKey = GlobalKey<FormState>();
   final _descriptionformKey = GlobalKey<FormState>();
+  bool groupSet = false;
+  late var groupCredentials;
+
   RegExp regExp = new RegExp(
     r"^[A-Za-z0-9]\w+$",
     multiLine: true,
@@ -48,6 +52,17 @@ class _AddTodoState extends State<AddTodo> {
     super.initState();
     titleController = TextEditingController(text: initTitle);
     descriptionController = TextEditingController(text: initDescription);
+    getGroupCredentials();
+  }
+
+  // TODO: Add Check Whether Is it Logged in Or not and then call storage.readAll()
+
+  void getGroupCredentials() async {
+    var result = await globalStorage.storage.readAll();
+    groupCredentials = [result['groupId'], result['groupName']];
+    setState(() {
+      groupSet = true;
+    });
   }
 
   void addTodo() async {
@@ -67,7 +82,8 @@ class _AddTodoState extends State<AddTodo> {
               'categoryId': categoryId,
               'title': titleController.text,
               'description': descriptionController.text,
-              'status': 'NC'
+              'status': 'NC',
+              'groupId': groupCredentials[0]
             }));
         setState(() {
           _isLoading = false;
@@ -78,7 +94,8 @@ class _AddTodoState extends State<AddTodo> {
           responseBody['categoryId'],
           responseBody['title'],
           responseBody['description'],
-          responseBody['status']
+          responseBody['status'],
+          responseBody['groupId']
         ]);
       } catch (err) {
         setState(() {
@@ -90,45 +107,48 @@ class _AddTodoState extends State<AddTodo> {
     }
   }
 
-  Widget titleField(
-      GlobalKey<FormState> key,
-      int maxLines,
-      int minLines,
-      TextInputType type,
-      TextEditingController controller,
-      bool autofocus,
-      String hintText) {
+  Widget titleField(GlobalKey<FormState> key, int maxLines, int minLines,
+      TextInputType type, TextEditingController controller, String hintText) {
     return Padding(
-        padding: EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(15.0),
         child: Form(
           key: key,
           child: TextFormField(
             keyboardType: type,
             controller: controller,
-            autofocus: autofocus,
+            // autofocus: autofocus,
             maxLines: maxLines,
             minLines: minLines,
             decoration: InputDecoration(
-                contentPadding: EdgeInsets.all(20.0),
-                suffixIcon: Icon(
-                  Icons.add_task,
-                  color: Colors.blue,
-                ),
-                hintText: hintText,
-                hintStyle: TextStyle(color: Colors.blue[300]),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue)),
-                errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.red, width: 2.0)),
-                disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue, width: 2.0)),
-                errorStyle: TextStyle(fontSize: 15.0)),
+              contentPadding: EdgeInsets.all(20.0),
+              suffixIcon: Icon(
+                Icons.add_task,
+                color: Colors.deepPurple.shade400,
+              ),
+              hintText: hintText,
+              hintStyle: TextStyle(color: Colors.deepPurple.shade400),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 1.0)),
+              errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(color: Colors.red, width: 2.0)),
+              errorStyle:
+                  TextStyle(fontSize: 15.0, fontWeight: FontWeight.w500),
+            ),
             validator: (value) {
               setState(() {
                 error = true;
@@ -207,67 +227,117 @@ class _AddTodoState extends State<AddTodo> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(""),
-      ),
+      // appBar: AppBar(
+      //   title: Text(""),
+      // ),
       body: WillPopScope(
         onWillPop: _onBackPressed,
-        child: Center(
-          child: Column(
-            children: <Widget>[
-              titleField(_titleformKey, 1, 1, TextInputType.text,
-                  titleController, true, "Todo Title"),
-              titleField(_descriptionformKey, 10, 1, TextInputType.multiline,
-                  descriptionController, false, "Todo Description"),
-              _isLoading
-                  ? Container()
-                  : ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _isLoading = true;
-                        });
-                        descriptionController.text = descriptionController.text
-                            .toString()
-                            .replaceAll(
-                                new RegExp(r'(?:[\t ]*(?:\r?\n|\r))+'), '\n');
-                        descriptionController.text = descriptionController.text
-                            .toString()
-                            .trimLeft()
-                            .trimRight();
-                        print(descriptionController.text);
-                        if (titleController.text == "" ||
-                            descriptionController.text == "") {
-                          setState(() {
-                            _isLoading = false;
-                            error = true;
-                            errorText =
-                                "Please Enter Todo Name and Todo Description to add it";
-                          });
-                        } else {
-                          setState(() {
-                            _isLoading = true;
-                          });
-                          isEdit ? editTodo() : addTodo();
-                        }
-                      },
-                      child: Text(
-                        isEdit ? "Done" : "Add Todo",
-                        style: TextStyle(fontSize: 18),
-                      ),
+        child: Stack(
+          children: <Widget>[
+            Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage("images/login_singup_background.jpg"),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: null),
+            Center(
+              child: Container(
+                // margin: EdgeInsets.fromLTRB(35, , 20, 20),
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      spreadRadius: 5,
+                      blurRadius: 7,
+                      offset: Offset(0, 3), // changes position of shadow
                     ),
-              _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : Container(),
-              error
-                  ? Text(
-                      errorText,
-                      style: TextStyle(color: Colors.red.shade900),
-                    )
-                  : Container(),
-            ],
-          ),
+                  ],
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+                width: 340,
+                height: 300,
+                child: Center(
+                  child: Column(
+                    children: <Widget>[
+                      SizedBox(
+                        height: 10,
+                      ),
+                      titleField(_titleformKey, 1, 1, TextInputType.text,
+                          titleController, "Todo Title"),
+                      titleField(
+                          _descriptionformKey,
+                          10,
+                          1,
+                          TextInputType.multiline,
+                          descriptionController,
+                          "Todo Description"),
+                      SizedBox(
+                        height: 10,
+                      ),
+                      _isLoading
+                          ? Container()
+                          : ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  primary: Colors.deepPurpleAccent.shade100,
+                                  padding: EdgeInsets.fromLTRB(30, 10, 30, 10),
+                                  elevation: 10.0),
+                              onPressed: () {
+                                setState(() {
+                                  _isLoading = true;
+                                });
+                                descriptionController.text =
+                                    descriptionController.text
+                                        .toString()
+                                        .replaceAll(
+                                            new RegExp(
+                                                r'(?:[\t ]*(?:\r?\n|\r))+'),
+                                            '\n');
+                                descriptionController.text =
+                                    descriptionController.text
+                                        .toString()
+                                        .trimLeft()
+                                        .trimRight();
+                                print(descriptionController.text);
+                                if (titleController.text == "" ||
+                                    descriptionController.text == "") {
+                                  setState(() {
+                                    _isLoading = false;
+                                    error = true;
+                                    errorText =
+                                        "Please Enter Todo Name and Todo Description to add it";
+                                  });
+                                } else {
+                                  setState(() {
+                                    _isLoading = true;
+                                  });
+                                  isEdit ? editTodo() : addTodo();
+                                }
+                              },
+                              child: Text(
+                                isEdit ? "Done" : "Add Todo",
+                                style: TextStyle(fontSize: 18),
+                              ),
+                            ),
+                      _isLoading
+                          ? Center(
+                              child: CircularProgressIndicator(),
+                            )
+                          : Container(),
+                      error
+                          ? Text(
+                              errorText,
+                              style: TextStyle(color: Colors.red.shade900),
+                            )
+                          : Container(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

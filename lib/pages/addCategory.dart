@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo_flutter_app/global/jwtVerifyFunction.dart';
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
+import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 import 'package:todo_flutter_app/pages/login.dart';
 
 class AddCategory extends StatefulWidget {
@@ -21,6 +22,7 @@ class _AddCategoryState extends State<AddCategory> {
   var responseBody;
   bool _isLoading = false;
   bool _addCategory = true;
+  late var groupId;
 
   void addCategory() async {
     setState(() {
@@ -38,7 +40,9 @@ class _AddCategoryState extends State<AddCategory> {
         var headers = await globalConstants.tokenRead();
         var url = Uri.parse('${globalConstants.severIp}/category');
         var response = await http.post(url,
-            headers: headers, body: jsonEncode({'text': textController.text}));
+            headers: headers,
+            body:
+                jsonEncode({'text': textController.text, 'groupId': groupId}));
         responseBody = jsonDecode(response.body);
         Navigator.pop(context, [responseBody['_id'], responseBody['text']]);
       } catch (err) {
@@ -51,6 +55,20 @@ class _AddCategoryState extends State<AddCategory> {
     }
   }
 
+  @override
+  void initState() {
+    super.initState();
+    getGroupCredentials();
+  }
+
+  // TODO: Add Check Whether Is it Logged in Or not and then call storage.readAll()
+
+  void getGroupCredentials() async {
+    var result = await globalStorage.storage.readAll();
+    groupId = result['groupId'];
+    setState(() {});
+  }
+
   Widget categoryField() {
     return Padding(
         padding: EdgeInsets.all(20.0),
@@ -59,28 +77,37 @@ class _AddCategoryState extends State<AddCategory> {
           child: TextFormField(
             keyboardType: TextInputType.text,
             controller: textController,
-            autofocus: true,
+            // autofocus: true,
             decoration: InputDecoration(
-                contentPadding: EdgeInsets.all(20.0),
-                suffixIcon: Icon(
-                  Icons.add_task,
-                  color: Colors.blue,
-                ),
-                hintText: "Category Name",
-                hintStyle: TextStyle(color: Colors.blue[300]),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue)),
-                errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.red, width: 2.0)),
-                disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue, width: 2.0)),
-                errorStyle: TextStyle(fontSize: 15.0)),
+              contentPadding: EdgeInsets.all(20.0),
+              suffixIcon: Icon(
+                Icons.add_task,
+                color: Colors.deepPurple.shade400,
+              ),
+              hintText: "Category Name",
+              hintStyle: TextStyle(color: Colors.deepPurple.shade400),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 1.0)),
+              errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(color: Colors.red, width: 2.0)),
+              errorStyle:
+                  TextStyle(fontSize: 15.0, fontWeight: FontWeight.w500),
+            ),
             validator: (value) {
               setState(() {
                 error = true;
@@ -120,50 +147,84 @@ class _AddCategoryState extends State<AddCategory> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Add Category"),
-        actions: [],
-      ),
-      body: WillPopScope(
-        onWillPop: _onBackPressed,
-        child: Column(
-          children: <Widget>[
-            categoryField(),
-            _addCategory
-                ? ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      // print(textController.text);
-                      if (textController.text == "") {
-                        setState(() {
-                          _isLoading = false;
-                          error = true;
-                          errorText =
-                              "Please Enter Category Name to Add Category";
-                        });
-                      } else {
-                        setState(() {
-                          _addCategory = false;
-                        });
-                        addCategory();
-                      }
-                    },
-                    child: Text("Add Category"),
-                  )
-                : Container(),
-            _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : Container(),
-            error
-                ? Text(
-                    errorText,
-                    style: TextStyle(color: Colors.red.shade900),
-                  )
-                : Container(),
-          ],
-        ),
+      // appBar: AppBar(
+      //   title: Text("Add Category"),
+      //   actions: [],
+      // ),
+      body: Stack(
+        children: <Widget>[
+          Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage("images/login_singup_background.jpg"),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: null),
+          Center(
+            child: Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    spreadRadius: 5,
+                    blurRadius: 7,
+                    offset: Offset(0, 3), // changes position of shadow
+                  ),
+                ],
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(15.0),
+              ),
+              width: 340,
+              height: 200,
+              child: WillPopScope(
+                onWillPop: _onBackPressed,
+                child: Column(
+                  children: <Widget>[
+                    categoryField(),
+                    _addCategory
+                        ? ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                                primary: Colors.deepPurpleAccent.shade100,
+                                padding: EdgeInsets.fromLTRB(30, 10, 30, 10),
+                                elevation: 10.0),
+                            onPressed: () {
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              // print(textController.text);
+                              if (textController.text == "") {
+                                setState(() {
+                                  _isLoading = false;
+                                  error = true;
+                                  errorText =
+                                      "Please Enter Category Name to Add Category";
+                                });
+                              } else {
+                                setState(() {
+                                  _addCategory = false;
+                                });
+                                addCategory();
+                              }
+                            },
+                            child: Text("Add Category"),
+                          )
+                        : Container(),
+                    _isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : Container(),
+                    error
+                        ? Text(
+                            errorText,
+                            style: TextStyle(color: Colors.red.shade900),
+                          )
+                        : Container(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

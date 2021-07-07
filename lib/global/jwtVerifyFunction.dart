@@ -8,6 +8,8 @@ validLogin() async {
   try {
     result = JwtDecoder.isExpired(jwt.toString());
   } catch (err) {
+    print(err);
+    await globalStorage.storage.deleteAll();
     return true;
   }
   return result;

@@ -26,15 +26,20 @@ class _CategoryState extends State<Category> {
   static ScrollController _controller = ScrollController();
   late var result;
   late var decodedToken;
+  late var groupCredentials;
   List<CategoryBlueprint> categories = [];
   String serverError = "";
+
   void addCategory() async {
     result = await Navigator.pushNamed(context, "/addCategory");
-    print("Res" + result.toString());
     if (result != null) {
       setState(() {
-        categories.add(
-            CategoryBlueprint(id: result[0], category: result[1], c: 0, nc: 0));
+        categories.add(CategoryBlueprint(
+            id: result[0],
+            groupId: groupCredentials[0],
+            category: result[1],
+            c: 0,
+            nc: 0));
       });
     }
   }
@@ -61,6 +66,7 @@ class _CategoryState extends State<Category> {
                 : category['CompletedTodos'][0]['CompletedTodos'],
             categories.add(CategoryBlueprint(
                 id: category['_id'],
+                groupId: category['groupId'],
                 category: category['text'],
                 c: complete,
                 nc: notcomplete))
@@ -139,9 +145,12 @@ class _CategoryState extends State<Category> {
     }
   }
 
-  void setUsername() async {
-    var result = await globalStorage.storage.read(key: "jwt");
-    decodedToken = JwtDecoder.decode(result.toString());
+  // TODO: Add Check Whether Is it Logged in Or not and then call storage.readAll()
+
+  void getGroupCredentials() async {
+    var result = await globalStorage.storage.readAll();
+    decodedToken = JwtDecoder.decode(result['jwt'].toString());
+    groupCredentials = [result['groupId'], result['groupName']];
     setState(() {
       _emailset = true;
     });
@@ -151,7 +160,7 @@ class _CategoryState extends State<Category> {
   void initState() {
     super.initState();
     checkLogin();
-    setUsername();
+    getGroupCredentials();
     getAllCategories();
   }
 
@@ -172,29 +181,19 @@ class _CategoryState extends State<Category> {
           print("Is this running");
         },
         child: Card(
+          color: Colors.purpleAccent.shade100,
           margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 10, 2, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      "Status: ${element.c}/${element.nc + element.c}",
-                      textAlign: TextAlign.start,
-                      style: TextStyle(fontSize: 15),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 3),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    Text(element.category, style: TextStyle(fontSize: 15)),
+                    Text(element.category,
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
                     IconButton(
                       onPressed: () {
                         _deleteCategory(element, element.category, element.id);
@@ -207,6 +206,22 @@ class _CategoryState extends State<Category> {
                   ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 5, 2, 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      element.nc + element.c == 0
+                          ? "Completed Tasks: No Tasks To Complete"
+                          : "Completed Tasks: ${element.c}/${element.nc + element.c}",
+                      textAlign: TextAlign.start,
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ));
@@ -215,90 +230,133 @@ class _CategoryState extends State<Category> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: _emailset ? Text(decodedToken['email']) : Container(),
-        centerTitle: true,
-      ),
-      body: isServerError
-          ? Column(
-              // mainAxisAlignment: MainAxisAlignment.center,
-              // crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      serverError,
-                      style: TextStyle(
-                        color: Colors.red.shade900,
-                        fontSize: 18,
+        // appBar: AppBar(
+        //   title: _emailset ? Text(groupCredentials[1]) : Container(),
+        //   centerTitle: true,
+        // ),
+        body: Stack(
+      children: <Widget>[
+        Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage("images/login_singup_background.jpg"),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: null),
+        Container(
+            padding: EdgeInsets.symmetric(vertical: 70, horizontal: 30),
+            child: _emailset
+                ? Text(
+                    "Welcome ${groupCredentials[1]}",
+                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.w500),
+                  )
+                : Container()),
+        isServerError
+            ? Column(
+                // mainAxisAlignment: MainAxisAlignment.center,
+                // crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        serverError,
+                        style: TextStyle(
+                          color: Colors.red.shade900,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _refreshPage = true;
+                        });
+                        getAllCategories();
+                      },
+                      child: Text("Refresh Page")),
+                  _refreshPage ? CircularProgressIndicator() : Container()
+                ],
+              )
+            : _getAllcategory
+                ? Container(
+                    width: 400,
+                    margin: EdgeInsets.fromLTRB(10, 100, 10, 10),
+                    // height: double.infinity,
+                    // decoration: BoxDecoration(color: Colors.black),
+                    child: RefreshIndicator(
+                      onRefresh: getAllCategories,
+                      child: SingleChildScrollView(
+                        controller: _controller,
+                        physics: AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                            child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(20, 20, 10, 0),
+                              child: Text(
+                                "Categories",
+                                style: TextStyle(
+                                    fontSize: 30,
+                                    color: Colors.deepPurple.shade900),
+                              ),
+                            ),
+                            // SizedBox(
+                            //   height: 5,
+                            // ),
+                            categories.length == 0
+                                ? Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          45, 20, 20, 10),
+                                      child: Text(
+                                        "No Categories To Display Please Add Them",
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    physics: NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    itemCount: _isLoading
+                                        ? categories.length + 1
+                                        : categories.length,
+                                    itemBuilder: (context, index) {
+                                      if (categories.length == index) {
+                                        return Center(
+                                            child: CircularProgressIndicator());
+                                      }
+                                      return data(categories[index]);
+                                      // return categories[index];
+                                    },
+                                  ),
+                            Align(
+                                alignment: Alignment.bottomRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: FloatingActionButton(
+                                    backgroundColor: Colors.deepPurple.shade900,
+                                    onPressed: () {
+                                      addCategory();
+                                    },
+                                    child: Icon(
+                                      Icons.add,
+                                    ),
+                                  ),
+                                )),
+                          ],
+                        )),
                       ),
                     ),
-                  ],
-                ),
-                OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _refreshPage = true;
-                      });
-                      getAllCategories();
-                    },
-                    child: Text("Refresh Page")),
-                _refreshPage ? CircularProgressIndicator() : Container()
-              ],
-            )
-          : _getAllcategory
-              ? RefreshIndicator(
-                  onRefresh: getAllCategories,
-                  child: SingleChildScrollView(
-                    controller: _controller,
-                    physics: AlwaysScrollableScrollPhysics(),
-                    child: Container(
-                        child: Column(
-                      children: <Widget>[
-                        Center(
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(0, 20, 0, 0),
-                            child: Text(
-                              "Categories",
-                              style: TextStyle(
-                                  fontSize: 25, color: Colors.green.shade800),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          height: 20,
-                        ),
-                        ListView.builder(
-                          physics: NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: _isLoading
-                              ? categories.length + 1
-                              : categories.length,
-                          itemBuilder: (context, index) {
-                            if (categories.length == index) {
-                              return Center(child: CircularProgressIndicator());
-                            }
-                            return data(categories[index]);
-                            // return categories[index];
-                          },
-                        ),
-                        Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: FloatingActionButton(
-                                onPressed: () {
-                                  addCategory();
-                                },
-                                child: Icon(Icons.add),
-                              ),
-                            )),
-                      ],
-                    )),
-                  ),
-                )
-              : Center(child: CircularProgressIndicator()),
-    );
+                  )
+                : Center(child: CircularProgressIndicator()),
+      ],
+    ));
   }
 }

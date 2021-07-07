@@ -6,6 +6,7 @@ import 'package:todo_flutter_app/global/jwtVerifyFunction.dart';
 import 'package:todo_flutter_app/pages/addTodo.dart';
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
 import 'package:todo_flutter_app/pages/login.dart';
+import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 
 class EachCategory extends StatefulWidget {
   late final String id;
@@ -38,6 +39,8 @@ class _EachCategoryState extends State<EachCategory> {
   late int skipNotComplete;
   late int limitNotComplete;
   bool completeFirst = true;
+  bool groupSet = false;
+  late var groupCredentials;
 
   _EachCategoryState(this.categoryId, this.category, this.nc, this.c);
 
@@ -51,6 +54,7 @@ class _EachCategoryState extends State<EachCategory> {
       setState(() {
         notCompletedTodos.add(TodoBlueprint(
             id: result[0],
+            groupId: result[5],
             categoryId: categoryId,
             todoTitle: result[2],
             todoDescription: result[3],
@@ -64,22 +68,34 @@ class _EachCategoryState extends State<EachCategory> {
     await http.put(
         Uri.parse("${globalConstants.severIp}/todos/Marknotcomplete"),
         headers: headers,
-        body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
+        body: jsonEncode({
+          'todoId': id,
+          'categoryId': categoryId,
+          'groupId': groupCredentials[0]
+        }));
   }
 
   void markAsComplete(String id) async {
     var headers = await globalConstants.tokenRead();
     await http.put(Uri.parse("${globalConstants.severIp}/todos/Markcomplete"),
         headers: headers,
-        body: jsonEncode({'todoId': id, 'categoryId': categoryId}));
+        body: jsonEncode({
+          'todoId': id,
+          'categoryId': categoryId,
+          'groupId': groupCredentials[0]
+        }));
   }
 
   Future<void> getCompletedTodos(String url, int limit, int skip) async {
     var headers = await globalConstants.tokenRead();
     var result = await http.post(Uri.parse(url),
         headers: headers,
-        body: jsonEncode(
-            {'categoryId': categoryId, 'limit': limit, 'skip': skip}));
+        body: jsonEncode({
+          'categoryId': categoryId,
+          'limit': limit,
+          'skip': skip,
+          'groupId': groupCredentials[0]
+        }));
     var allTodos = jsonDecode(result.body);
     if (!viewMore) {
       completedTodos.removeRange(0, completedTodos.length);
@@ -87,6 +103,7 @@ class _EachCategoryState extends State<EachCategory> {
     allTodos.forEach((todo) => {
           completedTodos.add(TodoBlueprint(
               id: todo['_id'],
+              groupId: todo['groupId'],
               categoryId: todo['categoryId'],
               todoTitle: todo['title'],
               todoDescription: todo['description'],
@@ -101,8 +118,12 @@ class _EachCategoryState extends State<EachCategory> {
     var headers = await globalConstants.tokenRead();
     var result = await http.post(Uri.parse(url),
         headers: headers,
-        body: jsonEncode(
-            {'categoryId': categoryId, 'limit': limit, 'skip': skip}));
+        body: jsonEncode({
+          'categoryId': categoryId,
+          'limit': limit,
+          'skip': skip,
+          'groupId': groupCredentials[0]
+        }));
     var allTodos = jsonDecode(result.body);
     if (!viewMore) {
       notCompletedTodos.removeRange(0, notCompletedTodos.length);
@@ -110,6 +131,7 @@ class _EachCategoryState extends State<EachCategory> {
     allTodos.forEach((todo) => {
           notCompletedTodos.add(TodoBlueprint(
               id: todo['_id'],
+              groupId: todo['groupId'],
               categoryId: todo['categoryId'],
               todoTitle: todo['title'],
               todoDescription: todo['description'],
@@ -131,10 +153,21 @@ class _EachCategoryState extends State<EachCategory> {
     }
   }
 
+  // TODO: Add Check Whether Is it Logged in Or not and then call storage.readAll()
+
+  void getGroupCredentials() async {
+    var result = await globalStorage.storage.readAll();
+    groupCredentials = [result['groupId'], result['groupName']];
+    setState(() {
+      groupSet = true;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     checkLogin();
+    getGroupCredentials();
     setState(() {
       skipNotComplete = 4;
       limitNotComplete = notCompletedTodos.length;
@@ -164,6 +197,7 @@ class _EachCategoryState extends State<EachCategory> {
       notCompletedTodos.remove(todo);
       notCompletedTodos.add(TodoBlueprint(
           id: todo.id,
+          groupId: todo.groupId,
           categoryId: categoryId,
           todoTitle: result[1],
           todoDescription: result[2],
@@ -199,7 +233,8 @@ class _EachCategoryState extends State<EachCategory> {
         var headers = await globalConstants.tokenRead();
         var deleteRequest = await http.delete(
             Uri.parse("${globalConstants.severIp}/todos/delete/${todo.id}"),
-            headers: headers);
+            headers: headers,
+            body: jsonEncode({'groupId': groupCredentials[0]}));
         if (jsonDecode(deleteRequest.body)['success'] != null) {
           todo.todoStatus == "NC" ? nc -= 1 : c -= 1;
           final snackBar = SnackBar(
@@ -369,155 +404,183 @@ class _EachCategoryState extends State<EachCategory> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Center(child: Text("Todos Of Category $category")),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () {
-          setState(() {
-            skipComplete = 0;
-            skipNotComplete = 0;
-            limitComplete = completedTodos.length;
-            limitNotComplete = notCompletedTodos.length;
-          });
-          return pressedCompleted
-              ? getCompletedTodos("${globalConstants.severIp}/todos/completed",
-                  limitComplete, skipComplete)
-              : getNotCompeletedTodos(
-                  "${globalConstants.severIp}/todos/Notcompleted",
-                  limitNotComplete,
-                  skipNotComplete);
-        },
-        child: Container(
-          child: SingleChildScrollView(
-            controller: _controller,
-            physics: AlwaysScrollableScrollPhysics(),
-            child: Container(
-                // : Center(child: CircularProgressIndicator()),
-                child: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 15, 20, 5),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            pressedCompleted = false;
-                            pressedNotCompleted = true;
-                            _isLoading = true;
-                            limitNotComplete = notCompletedTodos.length;
-                            skipNotComplete = 0;
-                          });
-                          getNotCompeletedTodos(
-                              "${globalConstants.severIp}/todos/Notcompleted",
-                              limitNotComplete,
-                              skipNotComplete);
-                        },
-                        style: ButtonStyle(backgroundColor:
-                            MaterialStateProperty.resolveWith<Color>((states) {
-                          if (pressedNotCompleted) {
-                            return Colors.grey.shade300;
-                          }
-                          return Colors.transparent;
-                        })),
-                        child: Text("Not Completed", style: fontSize),
-                      ),
-                      OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              pressedCompleted = true;
-                              pressedNotCompleted = false;
-                              _isLoading = true;
-                              limitComplete =
-                                  completeFirst ? 4 : completedTodos.length;
-                              skipComplete = 0;
-                              completeFirst = false;
-                            });
-                            print(limitComplete);
-                            print(skipComplete);
-                            getCompletedTodos(
-                                "${globalConstants.severIp}/todos/completed",
-                                limitComplete,
-                                skipComplete);
-                          },
-                          style: ButtonStyle(backgroundColor:
-                              MaterialStateProperty.resolveWith<Color>(
-                                  (states) {
-                            if (pressedCompleted) {
-                              return Colors.grey.shade300;
-                            }
-                            return Colors.transparent;
-                          })),
-                          child: Text("Completed", style: fontSize)),
-                    ],
-                  ),
+      // appBar: AppBar(
+      //   title: Center(child: Text("$category")),
+      // ),
+      body: Stack(
+        children: <Widget>[
+          Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage("images/login_singup_background.jpg"),
+                  fit: BoxFit.cover,
                 ),
-                SizedBox(
-                  height: 15,
+              ),
+              child: null),
+          Container(
+            width: 400,
+            margin: EdgeInsets.fromLTRB(10, 100, 10, 10),
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  spreadRadius: 5,
+                  blurRadius: 7,
+                  offset: Offset(0, 3), // changes position of shadow
                 ),
-                _isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        physics: NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        itemCount: pressedCompleted
-                            ? completedTodos.length + 1
-                            : notCompletedTodos.length + 1,
-                        itemBuilder: (context, index) {
-                          if (pressedCompleted
-                              ? completedTodos.length == index
-                              : notCompletedTodos.length == index) {
-                            return pressedNotCompleted
-                                ? notCompletedTodos.length < nc
-                                    ? viewMoreButton()
-                                    : Container()
-                                : completedTodos.length < c
-                                    ? viewMoreButton()
-                                    : Container();
-                          }
-                          return pressedCompleted
-                              ? data(completedTodos[index])
-                              : data(notCompletedTodos[index]);
-                        },
-                      ),
-                _isLoading
-                    ? Container()
-                    : pressedNotCompleted
-                        ? addButton
-                            ? Align(
-                                alignment: Alignment.bottomRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: FloatingActionButton(
-                                    onPressed: () {
-                                      addTodo();
-                                    },
-                                    child: Icon(Icons.add),
-                                  ),
-                                ))
-                            : Container()
-                        : Container()
               ],
-            )),
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(15.0),
+            ),
+            child: RefreshIndicator(
+              onRefresh: () {
+                setState(() {
+                  skipComplete = 0;
+                  skipNotComplete = 0;
+                  limitComplete = completedTodos.length;
+                  limitNotComplete = notCompletedTodos.length;
+                });
+                return pressedCompleted
+                    ? getCompletedTodos(
+                        "${globalConstants.severIp}/todos/completed",
+                        limitComplete,
+                        skipComplete)
+                    : getNotCompeletedTodos(
+                        "${globalConstants.severIp}/todos/Notcompleted",
+                        limitNotComplete,
+                        skipNotComplete);
+              },
+              child: Container(
+                child: SingleChildScrollView(
+                  controller: _controller,
+                  physics: AlwaysScrollableScrollPhysics(),
+                  child: Container(
+                      // : Center(child: CircularProgressIndicator()),
+                      child: Column(
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 15, 20, 5),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            OutlinedButton(
+                              onPressed: () {
+                                setState(() {
+                                  pressedCompleted = false;
+                                  pressedNotCompleted = true;
+                                  _isLoading = true;
+                                  limitNotComplete = notCompletedTodos.length;
+                                  skipNotComplete = 0;
+                                });
+                                getNotCompeletedTodos(
+                                    "${globalConstants.severIp}/todos/Notcompleted",
+                                    limitNotComplete,
+                                    skipNotComplete);
+                              },
+                              style: ButtonStyle(backgroundColor:
+                                  MaterialStateProperty.resolveWith<Color>(
+                                      (states) {
+                                if (pressedNotCompleted) {
+                                  return Colors.grey.shade300;
+                                }
+                                return Colors.transparent;
+                              })),
+                              child: Text("Not Completed",
+                                  style: TextStyle(
+                                      fontSize: 17,
+                                      color: Colors.deepPurple.shade400)),
+                            ),
+                            OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    pressedCompleted = true;
+                                    pressedNotCompleted = false;
+                                    _isLoading = true;
+                                    limitComplete = completeFirst
+                                        ? 4
+                                        : completedTodos.length;
+                                    skipComplete = 0;
+                                    completeFirst = false;
+                                  });
+                                  print(limitComplete);
+                                  print(skipComplete);
+                                  getCompletedTodos(
+                                      "${globalConstants.severIp}/todos/completed",
+                                      limitComplete,
+                                      skipComplete);
+                                },
+                                style: ButtonStyle(backgroundColor:
+                                    MaterialStateProperty.resolveWith<Color>(
+                                        (states) {
+                                  if (pressedCompleted) {
+                                    return Colors.grey.shade300;
+                                  }
+                                  return Colors.transparent;
+                                })),
+                                child: Text("Completed",
+                                    style: TextStyle(
+                                        fontSize: 17,
+                                        color: Colors.deepPurple.shade400))),
+                          ],
+                        ),
+                      ),
+                      // SizedBox(
+                      //   height: 15,
+                      // ),
+                      _isLoading
+                          ? Center(
+                              child: CircularProgressIndicator(
+                              color: Colors.deepPurple.shade400,
+                            ))
+                          : ListView.builder(
+                              physics: NeverScrollableScrollPhysics(),
+                              shrinkWrap: true,
+                              itemCount: pressedCompleted
+                                  ? completedTodos.length + 1
+                                  : notCompletedTodos.length + 1,
+                              itemBuilder: (context, index) {
+                                if (pressedCompleted
+                                    ? completedTodos.length == index
+                                    : notCompletedTodos.length == index) {
+                                  return pressedNotCompleted
+                                      ? notCompletedTodos.length < nc
+                                          ? viewMoreButton()
+                                          : Container()
+                                      : completedTodos.length < c
+                                          ? viewMoreButton()
+                                          : Container();
+                                }
+                                return pressedCompleted
+                                    ? data(completedTodos[index])
+                                    : data(notCompletedTodos[index]);
+                              },
+                            ),
+                      _isLoading
+                          ? Container()
+                          : pressedNotCompleted
+                              ? addButton
+                                  ? Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: FloatingActionButton(
+                                          backgroundColor:
+                                              Colors.deepPurple.shade400,
+                                          onPressed: () {
+                                            addTodo();
+                                          },
+                                          child: Icon(Icons.add),
+                                        ),
+                                      ))
+                                  : Container()
+                              : Container()
+                    ],
+                  )),
+                ),
+              ),
+            ),
           ),
-        ),
-        // _isLoading
-        //     ? Container()
-        //     : pressedNotCompleted
-        //         ? Align(
-        //             alignment: Alignment.bottomRight,
-        //             child: Padding(
-        //               padding: const EdgeInsets.all(8.0),
-        //               child: FloatingActionButton(
-        //                 onPressed: () {
-        //                   addTodo();
-        //                 },
-        //                 child: Icon(Icons.add),
-        //               ),
-        //             ))
-        //         : Container()
+        ],
       ),
     );
   }
