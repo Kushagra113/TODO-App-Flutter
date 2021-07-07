@@ -178,7 +178,6 @@ class _CategoryState extends State<Category> {
     return GestureDetector(
         onTap: () {
           pushToTodoandgetAllCategories(element);
-          print("Is this running");
         },
         child: Card(
           color: Colors.purpleAccent.shade100,

@@ -481,13 +481,14 @@ class _EachCategoryState extends State<EachCategory> {
                                   MaterialStateProperty.resolveWith<Color>(
                                       (states) {
                                 if (pressedNotCompleted) {
-                                  return Colors.grey.shade300;
+                                  return Colors.blueGrey.shade300;
                                 }
                                 return Colors.transparent;
                               })),
                               child: Text("Not Completed",
                                   style: TextStyle(
-                                      fontSize: 17,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
                                       color: Colors.deepPurple.shade400)),
                             ),
                             OutlinedButton(
@@ -513,13 +514,14 @@ class _EachCategoryState extends State<EachCategory> {
                                     MaterialStateProperty.resolveWith<Color>(
                                         (states) {
                                   if (pressedCompleted) {
-                                    return Colors.grey.shade300;
+                                    return Colors.blueGrey.shade300;
                                   }
                                   return Colors.transparent;
                                 })),
                                 child: Text("Completed",
                                     style: TextStyle(
-                                        fontSize: 17,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
                                         color: Colors.deepPurple.shade400))),
                           ],
                         ),

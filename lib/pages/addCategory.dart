@@ -151,6 +151,7 @@ class _AddCategoryState extends State<AddCategory> {
       //   title: Text("Add Category"),
       //   actions: [],
       // ),
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: <Widget>[
           Container(
