@@ -142,6 +142,8 @@ class _CategoryState extends State<Category> {
     }
   }
 
+  // TODO: Add Check Whether Is it Logged in Or not and then call storage.readAll()
+
   void getGroupCredentials() async {
     var result = await globalStorage.storage.readAll();
     decodedToken = JwtDecoder.decode(result['jwt'].toString());
@@ -271,7 +273,7 @@ class _CategoryState extends State<Category> {
               )
             : _getAllcategory
                 ? Container(
-                    width: 380,
+                    width: 400,
                     margin: EdgeInsets.fromLTRB(10, 100, 10, 10),
                     // height: double.infinity,
                     // decoration: BoxDecoration(color: Colors.black),
@@ -336,7 +338,6 @@ class _CategoryState extends State<Category> {
                                     },
                                     child: Icon(
                                       Icons.add,
-                                      color: Colors.blueAccent.shade400,
                                     ),
                                   ),
                                 )),

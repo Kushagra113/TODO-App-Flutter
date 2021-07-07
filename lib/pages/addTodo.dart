@@ -55,6 +55,8 @@ class _AddTodoState extends State<AddTodo> {
     getGroupCredentials();
   }
 
+  // TODO: Add Check Whether Is it Logged in Or not and then call storage.readAll()
+
   void getGroupCredentials() async {
     var result = await globalStorage.storage.readAll();
     groupCredentials = [result['groupId'], result['groupName']];
@@ -80,7 +82,8 @@ class _AddTodoState extends State<AddTodo> {
               'categoryId': categoryId,
               'title': titleController.text,
               'description': descriptionController.text,
-              'status': 'NC'
+              'status': 'NC',
+              'groupId': groupCredentials[0]
             }));
         setState(() {
           _isLoading = false;
@@ -91,7 +94,8 @@ class _AddTodoState extends State<AddTodo> {
           responseBody['categoryId'],
           responseBody['title'],
           responseBody['description'],
-          responseBody['status']
+          responseBody['status'],
+          responseBody['groupId']
         ]);
       } catch (err) {
         setState(() {
@@ -103,22 +107,16 @@ class _AddTodoState extends State<AddTodo> {
     }
   }
 
-  Widget titleField(
-      GlobalKey<FormState> key,
-      int maxLines,
-      int minLines,
-      TextInputType type,
-      TextEditingController controller,
-      bool autofocus,
-      String hintText) {
+  Widget titleField(GlobalKey<FormState> key, int maxLines, int minLines,
+      TextInputType type, TextEditingController controller, String hintText) {
     return Padding(
-        padding: EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(15.0),
         child: Form(
           key: key,
           child: TextFormField(
             keyboardType: type,
             controller: controller,
-            autofocus: autofocus,
+            // autofocus: autofocus,
             maxLines: maxLines,
             minLines: minLines,
             decoration: InputDecoration(
@@ -260,20 +258,25 @@ class _AddTodoState extends State<AddTodo> {
                   borderRadius: BorderRadius.circular(15.0),
                 ),
                 width: 340,
-                height: 530,
+                height: 300,
                 child: Center(
                   child: Column(
                     children: <Widget>[
+                      SizedBox(
+                        height: 10,
+                      ),
                       titleField(_titleformKey, 1, 1, TextInputType.text,
-                          titleController, true, "Todo Title"),
+                          titleController, "Todo Title"),
                       titleField(
                           _descriptionformKey,
                           10,
                           1,
                           TextInputType.multiline,
                           descriptionController,
-                          false,
                           "Todo Description"),
+                      SizedBox(
+                        height: 10,
+                      ),
                       _isLoading
                           ? Container()
                           : ElevatedButton(

@@ -5,13 +5,12 @@ import 'package:todo_flutter_app/pages/login.dart';
 import 'package:todo_flutter_app/global/jwtVerifyFunction.dart';
 import 'package:todo_flutter_app/pages/singup.dart';
 import 'package:page_transition/page_transition.dart';
-
-import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
+// import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 
 var iniRoute;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await globalStorage.storage.delete(key: "jwt");
+  // await globalStorage.storage.delete(key: "jwt");
   bool isLoggedIn = await validLogin();
   iniRoute = isLoggedIn ? '/login' : '/category';
   runApp(MyApp());
