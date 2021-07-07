@@ -6,6 +6,7 @@ import 'package:todo_flutter_app/global/jwtVerifyFunction.dart';
 import 'package:todo_flutter_app/pages/addTodo.dart';
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
 import 'package:todo_flutter_app/pages/login.dart';
+import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 
 class EachCategory extends StatefulWidget {
   late final String id;
@@ -38,6 +39,8 @@ class _EachCategoryState extends State<EachCategory> {
   late int skipNotComplete;
   late int limitNotComplete;
   bool completeFirst = true;
+  bool groupSet = false;
+  late var groupCredentials;
 
   _EachCategoryState(this.categoryId, this.category, this.nc, this.c);
 
@@ -134,10 +137,19 @@ class _EachCategoryState extends State<EachCategory> {
     }
   }
 
+  void getGroupCredentials() async {
+    var result = await globalStorage.storage.readAll();
+    groupCredentials = [result['groupId'], result['groupName']];
+    setState(() {
+      groupSet = true;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     checkLogin();
+    getGroupCredentials();
     setState(() {
       skipNotComplete = 4;
       limitNotComplete = notCompletedTodos.length;
@@ -374,7 +386,7 @@ class _EachCategoryState extends State<EachCategory> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Center(child: Text("Todos Of Category $category")),
+        title: Center(child: Text("$category")),
       ),
       body: RefreshIndicator(
         onRefresh: () {
@@ -507,21 +519,6 @@ class _EachCategoryState extends State<EachCategory> {
             )),
           ),
         ),
-        // _isLoading
-        //     ? Container()
-        //     : pressedNotCompleted
-        //         ? Align(
-        //             alignment: Alignment.bottomRight,
-        //             child: Padding(
-        //               padding: const EdgeInsets.all(8.0),
-        //               child: FloatingActionButton(
-        //                 onPressed: () {
-        //                   addTodo();
-        //                 },
-        //                 child: Icon(Icons.add),
-        //               ),
-        //             ))
-        //         : Container()
       ),
     );
   }

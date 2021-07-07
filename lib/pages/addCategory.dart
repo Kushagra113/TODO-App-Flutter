@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo_flutter_app/global/jwtVerifyFunction.dart';
 import 'package:todo_flutter_app/global/serverIp.dart' as globalConstants;
+import 'package:todo_flutter_app/global/storage.dart' as globalStorage;
 import 'package:todo_flutter_app/pages/login.dart';
 
 class AddCategory extends StatefulWidget {
@@ -21,6 +22,7 @@ class _AddCategoryState extends State<AddCategory> {
   var responseBody;
   bool _isLoading = false;
   bool _addCategory = true;
+  late var groupId;
 
   void addCategory() async {
     setState(() {
@@ -38,7 +40,9 @@ class _AddCategoryState extends State<AddCategory> {
         var headers = await globalConstants.tokenRead();
         var url = Uri.parse('${globalConstants.severIp}/category');
         var response = await http.post(url,
-            headers: headers, body: jsonEncode({'text': textController.text}));
+            headers: headers,
+            body:
+                jsonEncode({'text': textController.text, 'groupId': groupId}));
         responseBody = jsonDecode(response.body);
         Navigator.pop(context, [responseBody['_id'], responseBody['text']]);
       } catch (err) {
@@ -49,6 +53,18 @@ class _AddCategoryState extends State<AddCategory> {
         print(err);
       }
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getGroupCredentials();
+  }
+
+  void getGroupCredentials() async {
+    var result = await globalStorage.storage.readAll();
+    groupId = result['groupId'];
+    setState(() {});
   }
 
   Widget categoryField() {

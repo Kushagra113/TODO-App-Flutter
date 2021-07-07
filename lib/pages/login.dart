@@ -24,92 +24,183 @@ class _LoginState extends State<Login> {
   bool resendOtp = false;
   bool loading = false;
   bool boxes = false;
+  bool error = false;
+  bool groupNameEdit = true;
+  String errorText = "";
+  var groupObjectReceived;
   var requestId;
 
   final emailController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final groupName = new TextEditingController();
+  final emailKey = GlobalKey<FormState>();
+  final groupNameKey = GlobalKey<FormState>();
   final CustomTimerController _Timecontroller = new CustomTimerController();
+
   void sendOtpRequest() async {
-    var result =
-        await http.post(Uri.parse("${globalConstants.severIp}/otp/sendOtp"),
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'emailaddress': emailController.text}));
-    print(result.body);
-    var resultBody = jsonDecode(result.body);
-    print(resultBody);
-    requestId = resultBody['id'];
-    // requestId = resultBody
-    setState(() {
-      emailEdit = false;
-      timeText = true;
-      resendOtp = false;
-      isLoading = false;
-    });
+    try {
+      setState(() {
+        groupNameEdit = false;
+      });
+      var result = await http.post(
+          Uri.parse("${globalConstants.severIp}/auth/login"),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(
+              {'name': groupName.text, 'emailaddress': emailController.text}));
+      var resultBody = jsonDecode(result.body);
+      if (resultBody['err'] != null) {
+        setState(() {
+          groupNameEdit = true;
+          emailEdit = true;
+          timeText = false;
+          otpfield = false;
+          error = true;
+          errorText = "${resultBody['err']}";
+          resendOtp = true;
+          isLoading = false;
+        });
+        print(errorText);
+      } else {
+        print(resultBody);
+        groupObjectReceived = resultBody;
+        requestId = resultBody['id'];
+        setState(() {
+          error = false;
+          errorText = "";
+          emailEdit = false;
+          timeText = true;
+          resendOtp = false;
+          isLoading = false;
+        });
+      }
+    } catch (err) {
+      print(err);
+      setState(() {
+        groupNameEdit = true;
+        resendOtp = true;
+        error = true;
+        otpfield = false;
+        errorText =
+            "Some Error Occured While sending OTP Request Please Try Again Later";
+        emailEdit = false;
+        timeText = false;
+        resendOtp = false;
+        isLoading = false;
+      });
+    }
   }
 
   Widget otpButton() {
-    return ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            setState(() {
-              emailEdit = false;
-              otpbutton = false;
-              isLoading = true;
-            });
-            sendOtpRequest();
-            setState(() {
-              isLoading = false;
-              timeText = true;
-              boxes = true;
-              otpfield = true;
-            });
-          }
-        },
-        child: Text("Email The OTP"));
+    return Container(
+      margin: EdgeInsets.only(top: 15),
+      child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              primary: Colors.deepPurpleAccent.shade100,
+              padding: EdgeInsets.fromLTRB(30, 10, 30, 10),
+              elevation: 10.0),
+          onPressed: () {
+            if (emailKey.currentState!.validate()) {
+              setState(() {
+                emailEdit = false;
+                otpbutton = false;
+                isLoading = true;
+              });
+              sendOtpRequest();
+              setState(() {
+                isLoading = false;
+                timeText = true;
+                boxes = true;
+                otpfield = true;
+              });
+            }
+          },
+          child: Text("Email The OTP")),
+    );
+  }
+
+  Widget nameField() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Form(
+        key: groupNameKey,
+        child: TextFormField(
+          enabled: groupNameEdit,
+          controller: groupName,
+          decoration: InputDecoration(
+              hintText: "Group Name",
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 1.0)),
+              errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(color: Colors.red, width: 2.0)),
+              errorStyle:
+                  TextStyle(fontSize: 15.0, fontWeight: FontWeight.w500)),
+        ),
+      ),
+    );
   }
 
   Widget emailTextField() {
     return Padding(
-        padding: EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: TextFormField(
-            keyboardType: TextInputType.emailAddress,
-            controller: emailController,
-            autofocus: true,
-            enabled: emailEdit,
-            decoration: InputDecoration(
-                contentPadding: EdgeInsets.all(20.0),
-                suffixIcon: Icon(
-                  Icons.email_rounded,
-                  color: Colors.blue,
-                ),
-                hintText: "Email Address",
-                hintStyle: TextStyle(color: Colors.blue[300]),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue)),
-                errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.red, width: 2.0)),
-                disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(25.0),
-                    borderSide: BorderSide(color: Colors.blue, width: 2.0)),
-                // errorText: "Please Enter Some Text",
-                errorStyle: TextStyle(fontSize: 15.0)),
-            validator: (value) {
-              if (EmailValidator.validate(value!)) {
-                return null;
-              }
-              return "Please Enter Valid Email Address";
-            },
-          ),
-        ));
+      padding: const EdgeInsets.only(top: 20),
+      child: Form(
+        key: emailKey,
+        child: TextFormField(
+          keyboardType: TextInputType.emailAddress,
+          controller: emailController,
+          enabled: emailEdit,
+          decoration: InputDecoration(
+              contentPadding: EdgeInsets.all(20.0),
+              suffixIcon: Icon(
+                Icons.email_rounded,
+                color: Colors.deepPurple.shade600,
+              ),
+              hintText: "Email",
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(
+                      color: Colors.deepPurple.shade400, width: 2.0)),
+              errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide(color: Colors.red, width: 2.0)),
+              errorStyle:
+                  TextStyle(fontSize: 15.0, fontWeight: FontWeight.w500)),
+          validator: (value) {
+            if (EmailValidator.validate(value!)) {
+              return null;
+            }
+            return "Please Enter Valid Email Address";
+          },
+        ),
+      ),
+    );
   }
 
   dialog() {
@@ -160,8 +251,14 @@ class _LoginState extends State<Login> {
           setState(() {
             isLoading = false;
           });
+          await globalStorage.storage
+              .write(key: "groupId", value: groupObjectReceived['groupId']);
+          await globalStorage.storage
+              .write(key: "groupName", value: groupObjectReceived['name']);
+
           Navigator.pushNamedAndRemoveUntil(
               context, "/category", (Route<dynamic> route) => false);
+          // Navigator.pus
         } else {
           setState(() {
             isLoading = false;
@@ -199,40 +296,99 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            emailTextField(),
-            otpbutton ? otpButton() : Container(),
-            SizedBox(height: 20),
-            timeText
-                ? Text("OTP Sent",
-                    style: TextStyle(color: Colors.green[400], fontSize: 17.0))
-                : Container(),
-            boxes ? SizedBox(height: 20.0) : Container(),
-            otpfield ? otptextfield() : Container(),
-            boxes ? SizedBox(height: 20) : Container(),
-            timeText ? otptimer() : Container(),
-            isLoading ? CircularProgressIndicator() : Container(),
-            resendOtp
-                ? ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        isLoading = true;
-                        resendOtp = false;
-                        // otpfield = false;
-                      });
-                      sendOtpRequest();
-                      setState(() {
-                        otpfield = true;
-                      });
-                    },
-                    child: Text("Resend OTP"))
-                : Container(),
-            boxes ? SizedBox(height: 20) : Container(),
-          ],
-        ),
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: <Widget>[
+          Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage("images/login_singup_background.jpg"),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: null),
+          Center(
+            child: Container(
+              margin: EdgeInsets.only(top: 10),
+              padding: EdgeInsets.all(15.0),
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    spreadRadius: 5,
+                    blurRadius: 7,
+                    offset: Offset(0, 3), // changes position of shadow
+                  ),
+                ],
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(15.0),
+              ),
+              width: 340,
+              height: 530,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 5, 2),
+                    child: Text(
+                      "Login",
+                      style: TextStyle(
+                          color: Colors.blueGrey.shade700, fontSize: 20),
+                    ),
+                  ),
+                  nameField(),
+                  emailTextField(),
+                  otpbutton ? otpButton() : Container(),
+                  SizedBox(height: 20),
+                  timeText
+                      ? Text("OTP Sent",
+                          style: TextStyle(
+                              color: Colors.green[400], fontSize: 17.0))
+                      : Container(),
+                  boxes ? SizedBox(height: 20.0) : Container(),
+                  otpfield ? otptextfield() : Container(),
+                  boxes ? SizedBox(height: 20) : Container(),
+                  timeText ? otptimer() : Container(),
+                  isLoading ? CircularProgressIndicator() : Container(),
+                  resendOtp
+                      ? ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              primary: Colors.deepPurpleAccent.shade100,
+                              padding: EdgeInsets.fromLTRB(30, 10, 30, 10),
+                              elevation: 10.0),
+                          onPressed: () {
+                            setState(() {
+                              isLoading = true;
+                              resendOtp = false;
+                              // otpfield = false;
+                            });
+                            sendOtpRequest();
+                            setState(() {
+                              otpfield = true;
+                            });
+                          },
+                          child: Text("Resend OTP"))
+                      : Container(),
+                  boxes ? SizedBox(height: 20) : Container(),
+                  error ? Text(errorText) : Container(),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 5),
+                      child: TextButton(
+                          onPressed: () {
+                            Navigator.pushReplacementNamed(context, "/singup");
+                          },
+                          child: Text(
+                            "Dont have an account? Signup",
+                            style: TextStyle(color: Colors.deepPurple.shade900),
+                          )),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
